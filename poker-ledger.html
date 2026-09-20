@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Poker Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0:#eef1f5; --bg-1:#f6f7f9; --panel:#ffffff; --panel-alt:#fafbfc;
+    --line:#dde1e8; --line-soft:#e8ebef;
+    --ink:#1c2230; --ink-dim:#5b6475; --ink-faint:#8891a0;
+    --accent:#2f5fd6; --accent-dim:#eef1fc; --accent-hover:#274ec2;
+    --profit:#158a5c; --loss:#c23b3b;
+    --p1:#2f5fd6; --p2:#158a5c; --p3:#a05fc9; --p4:#c17a1f; --p5:#c23b7a; --p6:#0e8f9c; --p7:#6b7280; --p8:#b23a3a;
+    --radius:12px; --shadow:0 1px 2px rgba(20,25,40,.04), 0 8px 20px rgba(20,25,40,.06);
+    box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  *{box-sizing:border-box;} html,body{height:100%;}
+  body{margin:0;background:var(--bg-0);color:var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px;}
+  header.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding-top:env(safe-area-inset-top,0px);}
+  header.top h1{font-weight:800;font-size:clamp(22px,3.6vw,28px);margin:0;letter-spacing:-.015em;color:var(--ink);}
+  .tag{color:var(--ink-faint);font-size:12.5px;}
+  header.top .tag{color:var(--ink-faint);font-size:13px;}
+  #syncBanner{display:none;background:#fdf1ee;border:1px solid #f0c9bd;color:#9a3f26;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:16px;}
+  #syncBanner.show{display:block;}
+  nav.tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--line);overflow-x:auto;}
+  nav.tabs button{background:none;border:none;color:var(--ink-faint);font-family:inherit;font-size:13.5px;font-weight:600;padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
+  nav.tabs button.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
+  .panel + .panel{margin-top:16px;}
+  .panel h2{font-weight:700;font-size:16px;margin:0 0 14px;color:var(--ink);letter-spacing:-.005em;}
+  .panel p.sub{color:var(--ink-faint);font-size:13px;margin:-10px 0 16px;}
+  .entry-grid{display:grid;grid-template-columns:auto 1fr 1.3fr 1fr 1fr auto;gap:10px;align-items:end;}
+  @media (max-width:760px){.entry-grid{grid-template-columns:1fr 1fr;}}
+  .field label{display:block;font-size:12px;color:var(--ink-faint);margin-bottom:6px;font-weight:600;}
+  .field input,.field select{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px 12px;font-size:14.5px;font-family:inherit;}
+  .field input:focus,.field select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);}
+  .stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden;}
+  .stepper button{background:var(--panel-alt);border:none;color:var(--ink);width:34px;height:40px;font-size:17px;cursor:pointer;}
+  .stepper button:hover{background:var(--accent-dim);color:var(--accent);}
+  .stepper input{border:none;background:transparent;text-align:center;width:100%;font-size:14.5px;color:var(--ink);}
+  button.primary{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px 20px;font-weight:600;font-size:13.5px;cursor:pointer;font-family:inherit;}
+  button.primary:hover{background:var(--accent-hover);}
+  button.primary:disabled{opacity:.5;cursor:default;}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;}
+  button.ghost:hover{border-color:var(--accent);color:var(--accent);}
+  button.small{padding:5px 10px;font-size:12px;}
+  .session-row{display:flex;gap:10px;align-items:end;margin-bottom:14px;flex-wrap:wrap;}
+  .session-row .field{max-width:140px;}
+  .msg{font-size:13px;margin-top:10px;min-height:16px;}
+  .msg.err{color:var(--loss);} .msg.ok{color:var(--profit);}
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
+  .stat{background:var(--panel-alt);border:1px solid var(--line-soft);border-radius:10px;padding:14px 16px;}
+  .stat .num{font-weight:700;font-size:22px;letter-spacing:-.01em;}
+  .stat .lbl{font-size:12px;color:var(--ink-faint);margin-top:2px;}
+  .pos{color:var(--profit);} .neg{color:var(--loss);}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;color:var(--ink-faint);font-weight:600;font-size:12px;padding:8px 8px;border-bottom:1px solid var(--line);}
+  td{padding:8px 8px;border-bottom:1px solid var(--line-soft);}
+  tr:hover td{background:var(--bg-1);}
+  .num-cell{font-variant-numeric:tabular-nums;text-align:right;}
+  .table-scroll{overflow-x:auto;}
+  .row-actions{white-space:nowrap;}
+  .row-actions button{background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:13px;padding:2px 6px;}
+  .row-actions button:hover{color:var(--accent);}
+  .row-actions button.del:hover{color:var(--loss);}
+  .swatch{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle;}
+  .badge{display:inline-block;font-size:11px;background:var(--accent-dim);color:var(--accent);border-radius:5px;padding:2px 6px;}
+  .empty{color:var(--ink-faint);font-size:14px;padding:30px 10px;text-align:center;}
+  .legend{display:flex;flex-wrap:wrap;gap:12px 18px;margin:10px 0 4px;font-size:12.5px;color:var(--ink-dim);}
+  .legend span{display:flex;align-items:center;}
+  svg text{font-family:'Inter',sans-serif;}
+  .insight{background:var(--panel-alt);border-left:3px solid var(--accent);border-radius:6px;padding:12px 14px;font-size:13.5px;color:var(--ink-dim);line-height:1.5;margin-top:14px;}
+  .insight b{color:var(--ink);}
+  .footer-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;}
+  .settle-card{background:var(--panel-alt);border:1px solid var(--line-soft);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+  .settle-text{font-size:14px;}
+  .wa-btn{background:#1f8a5c;color:#fff;border:1px solid #1a7750;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;}
+  .wa-btn:hover{background:#1a7750;}
+  .phone-input{width:150px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:6px 8px;font-size:12.5px;}
+  ::selection{background:var(--accent);color:#fff;}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Poker Ledger</h1>
+      <div class="tag">Synced to Google Sheets &middot; leverage &amp; trend analysis</div>
+    </div>
+    <div class="tag" id="rangeTag"></div>
+  </header>
+  <div id="syncBanner"></div>
+
+  <nav class="tabs">
+    <button data-tab="log" class="active">Log</button>
+    <button data-tab="players">Players</button>
+    <button data-tab="trends">Trends</button>
+    <button data-tab="leaderboard">Leaderboard</button>
+    <button data-tab="settle">Settle</button>
+  </nav>
+
+  <!-- LOG -->
+  <section id="tab-log">
+    <div class="panel">
+      <h2>Session</h2>
+      <button class="primary" id="btnNewSession">Start new session</button>
+      <div class="session-row" style="margin-top:14px;">
+        <div class="field">
+          <label for="fSession">Session #</label>
+          <input id="fSession" type="number" min="1" placeholder="—" readonly>
+        </div>
+        <div class="field">
+          <label for="fDate">Date</label>
+          <input id="fDate" type="date">
+        </div>
+      </div>
+      <div class="msg" id="sessionHint">No session started yet — click "Start new session" above.</div>
+
+      <h2 style="margin-top:6px;">New entry</h2>
+      <p class="sub">Name, buy-in, return — log each player once the game has ended and you know both numbers.</p>
+      <div class="entry-grid">
+        <div class="field" style="min-width:120px;">
+          <label>Buy-in</label>
+          <div class="stepper">
+            <button type="button" id="buyMinus">−</button>
+            <input id="fBuyIn" type="number" value="500" step="500" min="0">
+            <button type="button" id="buyPlus">+</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fPlayerSelect">Player</label>
+          <select id="fPlayerSelect">
+            <option value="">Select player…</option>
+            <option value="__new__">+ Add new player</option>
+          </select>
+          <input id="fPlayerNew" type="text" placeholder="New player name" style="display:none;margin-top:6px;">
+        </div>
+        <div class="field">
+          <label for="fReturn">Return</label>
+          <input id="fReturn" type="number" inputmode="decimal" min="0" step="any" placeholder="e.g. 1250">
+        </div>
+        <div class="field">
+          <label for="fPhone">Phone (optional)</label>
+          <input id="fPhone" type="text" placeholder="e.g. 9198xxxxxxx">
+        </div>
+        <div class="field">
+          <button class="primary" id="btnAdd" style="width:100%;">Log entry</button>
+        </div>
+      </div>
+      <div class="msg" id="formMsg"></div>
+    </div>
+
+    <div class="panel">
+      <h2>All entries</h2>
+      <div class="table-scroll">
+        <table id="logTable">
+          <thead><tr><th>S#</th><th>Date</th><th>Name</th><th class="num-cell">Buy-in</th><th class="num-cell">Return</th><th class="num-cell">Net</th><th class="num-cell">Mult.</th><th></th></tr></thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="logEmpty" style="display:none;">No sessions logged yet.</div>
+      <div class="footer-actions">
+        <button class="ghost" id="btnImportHistory">Import historical data</button>
+        <button class="ghost" id="btnExportJson">Backup (.json)</button>
+        <button class="ghost" id="btnExportCsv">Export CSV</button>
+        <button class="ghost" id="btnRefresh">Refresh from Sheet</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAYERS -->
+  <section id="tab-players" style="display:none;">
+    <div class="panel">
+      <h2>Add / update a player</h2>
+      <p class="sub">Set names and phone numbers up front — the entry form's autocomplete and the Settle tab's WhatsApp buttons both use this list.</p>
+      <div class="entry-grid" style="grid-template-columns:1.3fr 1fr auto;">
+        <div class="field"><label for="pName">Name</label><input id="pName" list="nameList" placeholder="Player name" autocomplete="off"><datalist id="nameList"></datalist></div>
+        <div class="field"><label for="pPhone">Phone (with country code)</label><input id="pPhone" type="text" placeholder="e.g. 9198xxxxxxx"></div>
+        <div class="field"><button class="primary" id="btnSavePlayer" style="width:100%;">Add / update player</button></div>
+      </div>
+      <div class="msg" id="playerMsg"></div>
+    </div>
+    <div class="panel">
+      <h2>Roster</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Name</th><th>Phone</th><th></th></tr></thead>
+          <tbody id="rosterBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="rosterEmpty" style="display:none;">No players added yet.</div>
+    </div>
+  </section>
+
+  <!-- TRENDS -->
+  <section id="tab-trends" style="display:none;">
+    <div class="panel">
+      <h2>Cumulative net over time</h2>
+      <p class="sub">Running profit/loss per player. Only resolved (returned) sessions count.</p>
+      <div id="cumChartWrap"></div>
+      <div class="legend" id="cumLegend"></div>
+    </div>
+    <div class="panel">
+      <h2>Leverage — return multiplier per session</h2>
+      <p class="sub">Returned ÷ taken. Above 1.0 = grew the buy-in; below = lost part of it.</p>
+      <div id="multChartWrap"></div>
+      <div class="legend" id="multLegend"></div>
+      <div class="insight" id="leverageInsight"></div>
+    </div>
+  </section>
+
+  <!-- LEADERBOARD -->
+  <section id="tab-leaderboard" style="display:none;">
+    <div class="panel"><h2>Standings</h2><div class="stat-row" id="summaryStats"></div></div>
+    <div class="panel"><h2>Net profit by player</h2><div id="lbChartWrap"></div></div>
+    <div class="panel">
+      <h2>Player breakdown</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Player</th><th class="num-cell">Sessions</th><th class="num-cell">Taken</th><th class="num-cell">Returned</th><th class="num-cell">Net</th><th class="num-cell">Avg mult.</th><th class="num-cell">Win rate</th></tr></thead>
+          <tbody id="playerBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="lbEmpty" style="display:none;">No data yet.</div>
+    </div>
+  </section>
+
+  <!-- SETTLE -->
+  <section id="tab-settle" style="display:none;">
+    <div class="panel">
+      <h2>Settle a session</h2>
+      <p class="sub">Minimum transfers to net a session to zero. Only players with a return entered are included.</p>
+      <div class="session-row">
+        <div class="field" style="max-width:200px;">
+          <label for="settleSession">Session</label>
+          <select id="settleSession"></select>
+        </div>
+        <div class="field" style="max-width:170px;">
+          <label for="convFactor">Chips per currency unit</label>
+          <input id="convFactor" type="number" min="0.01" step="any" value="10">
+        </div>
+        <button class="ghost" id="btnSaveFactor">Save factor</button>
+        <div class="tag" id="factorMsg" style="align-self:center;"></div>
+      </div>
+      <div id="settleBalance" class="msg" style="margin-top:10px;"></div>
+      <div id="settleList" style="margin-top:14px;"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+var API_URL = "https://script.google.com/macros/s/AKfycbyFCWKbi53W4NVgDWFgb61Cc0m5PltZogfoxwwmsEMwr7rzzMK1IElenkJl9rC7n3azyw/exec";
+var PALETTE = ["--p1","--p2","--p3","--p4","--p5","--p6","--p7","--p8"];
+
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fmt(n){ return (Math.round(n*100)/100).toLocaleString(undefined,{maximumFractionDigits:2}); }
+function fmtSigned(n){ return (n>=0?"+":"−") + fmt(Math.abs(n)); }
+function escapeHtml(s){ var d=document.createElement("div"); d.textContent=s==null?"":s; return d.innerHTML; }
+
+var state = { entries: [], players: [], nextSession: 1, sessionsStatus: {}, settings: { conversionFactor: 10 } };
+var loading = false;
+
+function banner(text, isErr){
+  var el = document.getElementById("syncBanner");
+  if (!text){ el.classList.remove("show"); return; }
+  el.textContent = text; el.classList.add("show");
+}
+
+async function apiGet(){
+  var res = await fetch(API_URL);
+  if (!res.ok) throw new Error("GET failed: " + res.status);
+  return res.json();
+}
+async function apiPost(action, payload){
+  var res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: action, payload: payload })
+  });
+  if (!res.ok) throw new Error("POST failed: " + res.status);
+  var data = await res.json();
+  if (data && data.ok === false) throw new Error(data.error || "Backend rejected the request");
+  return data;
+}
+
+async function loadAll(){
+  loading = true;
+  try {
+    var data = await apiGet();
+    state.entries = data.entries || [];
+    state.players = data.players || [];
+    state.nextSession = data.nextSession || 1;
+    state.sessionsStatus = data.sessionsStatus || {};
+    state.settings = data.settings || { conversionFactor: 10 };
+    var cf = document.getElementById("convFactor");
+    if (cf && document.activeElement !== cf) cf.value = state.settings.conversionFactor;
+    banner(null);
+  } catch(e){
+    banner("Couldn't reach the Google Sheet — check your connection. Working from last loaded data.", true);
+  }
+  loading = false;
+  renderAll();
+}
+
+// ---------- derived ----------
+function playerColor(name, names){ return css(PALETTE[names.indexOf(name) % PALETTE.length]); }
+function sortedEntries(){ return state.entries.slice().sort(function(a,b){ return (a.session-b.session) || a.date.localeCompare(b.date); }); }
+function uniqueNames(){ var s={}; state.entries.forEach(function(e){s[e.player]=true;}); return Object.keys(s).sort(); }
+function findPlayer(name){ return state.players.find(function(p){ return p.name === name; }); }
+
+function computePlayerStats(){
+  var byName = {};
+  sortedEntries().forEach(function(e){
+    if (!byName[e.player]) byName[e.player] = { name:e.player, sessions:0, taken:0, returned:0, net:0, mults:[], wins:0, entries:[] };
+    var p = byName[e.player];
+    if (e.ret === null) return; // unresolved, skip from stats
+    p.sessions++; p.taken += e.buyIn; p.returned += e.ret; p.net += (e.ret - e.buyIn);
+    if (e.buyIn > 0) p.mults.push(e.ret / e.buyIn);
+    if (e.ret > e.buyIn) p.wins++;
+    p.entries.push(e);
+  });
+  return Object.keys(byName).map(function(k){
+    var p = byName[k];
+    p.avgMult = p.mults.length ? p.mults.reduce(function(a,b){return a+b;},0)/p.mults.length : null;
+    p.winRate = p.sessions ? p.wins/p.sessions : 0;
+    return p;
+  }).sort(function(a,b){ return b.net - a.net; });
+}
+function stddev(arr){
+  if (arr.length<2) return 0;
+  var m = arr.reduce(function(a,b){return a+b;},0)/arr.length;
+  return Math.sqrt(arr.reduce(function(a,b){return a+Math.pow(b-m,2);},0)/(arr.length-1));
+}
+
+// ---------- entry form ----------
+var fSession=document.getElementById("fSession"), fDate=document.getElementById("fDate"),
+    fBuyIn=document.getElementById("fBuyIn"), fPlayerSelect=document.getElementById("fPlayerSelect"), fPlayerNew=document.getElementById("fPlayerNew"),
+    fReturn=document.getElementById("fReturn"), fPhone=document.getElementById("fPhone"),
+    formMsg=document.getElementById("formMsg"), nameList=document.getElementById("nameList");
+
+fDate.value = todayISO();
+document.getElementById("buyMinus").addEventListener("click", function(){ fBuyIn.value = Math.max(0, (parseInt(fBuyIn.value)||0) - 500); });
+document.getElementById("buyPlus").addEventListener("click", function(){ fBuyIn.value = (parseInt(fBuyIn.value)||0) + 500; });
+document.getElementById("btnNewSession").addEventListener("click", function(){
+  var loggedCount = sessionNumbers().length; // distinct sessions already logged
+  fSession.value = loggedCount + 1; fDate.value = todayISO();
+  document.getElementById("sessionHint").textContent = "Session " + fSession.value + " started — log each player below, then start the next session when this one's done.";
+  document.getElementById("sessionHint").className = "msg ok";
+});
+fPlayerSelect.addEventListener("change", function(){
+  if (fPlayerSelect.value === "__new__"){ fPlayerNew.style.display = ""; fPlayerNew.focus(); }
+  else { fPlayerNew.style.display = "none"; fPlayerNew.value = ""; }
+});
+function currentPlayerName(){
+  return fPlayerSelect.value === "__new__" ? fPlayerNew.value.trim() : fPlayerSelect.value;
+}
+
+function showMsg(text, isErr){
+  formMsg.textContent = text; formMsg.className = "msg " + (isErr?"err":"ok");
+  if (!isErr) setTimeout(function(){ if (formMsg.textContent===text) formMsg.textContent=""; }, 2500);
+}
+
+document.getElementById("btnAdd").addEventListener("click", async function(){
+  var name = currentPlayerName();
+  var buyIn = parseFloat(fBuyIn.value);
+  var retRaw = fReturn.value.trim();
+  var ret = retRaw === "" ? null : parseFloat(retRaw);
+  var session = fSession.value ? parseInt(fSession.value) : null;
+  var date = fDate.value || todayISO();
+  var phone = fPhone.value.trim();
+
+  if (!session){ showMsg('Click "Start new session" above before logging entries.', true); return; }
+  if (!name){ showMsg("Select or add a player name.", true); (fPlayerSelect.value==="__new__"?fPlayerNew:fPlayerSelect).focus(); return; }
+  if (isNaN(buyIn) || buyIn < 0){ showMsg("Buy-in must be ≥ 0.", true); fBuyIn.focus(); return; }
+  if (ret === null){ showMsg("Enter the return — log this player once the game has ended.", true); fReturn.focus(); return; }
+  if (isNaN(ret) || ret < 0){ showMsg("Return must be ≥ 0.", true); fReturn.focus(); return; }
+
+  var btn = document.getElementById("btnAdd"); btn.disabled = true;
+  try {
+    await apiPost("addEntry", { session: session, date: date, player: name, buyIn: buyIn, ret: ret });
+    if (phone){ await apiPost("setPhone", { name: name, phone: phone }); }
+    await loadAll();
+    fSession.value = session; fDate.value = date;
+    fReturn.value=""; fPhone.value=""; fBuyIn.value = 500;
+    fPlayerSelect.value = ""; fPlayerNew.style.display = "none"; fPlayerNew.value = "";
+    fPlayerSelect.focus();
+    showMsg("Logged " + name + " for session " + session + ".", false);
+  } catch(e){ showMsg("Couldn't save — check your connection and try again.", true); }
+  btn.disabled = false;
+});
+
+// ---------- log table ----------
+var logBody=document.getElementById("logBody"), logEmpty=document.getElementById("logEmpty");
+function renderLog(){
+  refreshNameList();
+  var entries = sortedEntries().reverse();
+  logBody.innerHTML = "";
+  logEmpty.style.display = entries.length ? "none" : "block";
+  entries.forEach(function(e){
+    var net = e.ret===null ? null : (e.ret - e.buyIn);
+    var mult = (e.ret===null || e.buyIn<=0) ? null : (e.ret/e.buyIn);
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td>'+e.session+'</td><td>'+e.date+'</td><td>'+escapeHtml(e.player)+'</td>'+
+      '<td class="num-cell">'+fmt(e.buyIn)+'</td>'+
+      '<td class="num-cell">'+(e.ret===null?'<span class="badge">playing</span>':fmt(e.ret))+'</td>'+
+      '<td class="num-cell '+(net===null?"":(net>=0?"pos":"neg"))+'">'+(net===null?"—":fmtSigned(net))+'</td>'+
+      '<td class="num-cell">'+(mult===null?"—":fmt(mult)+"×")+'</td>'+
+      '<td class="row-actions"><button data-edit="'+e.rowId+'" title="Edit">✎</button><button class="del" data-del="'+e.rowId+'" title="Delete">✕</button></td>';
+    logBody.appendChild(tr);
+  });
+}
+function refreshNameList(){
+  nameList.innerHTML = "";
+  var names = uniqueNames();
+  names.forEach(function(n){ var o=document.createElement("option"); o.value=n; nameList.appendChild(o); });
+  var keep = fPlayerSelect.value;
+  fPlayerSelect.innerHTML = '<option value="">Select player…</option>' +
+    names.map(function(n){ return '<option value="'+n.replace(/"/g,"&quot;")+'">'+n+'</option>'; }).join("") +
+    '<option value="__new__">+ Add new player</option>';
+  if (names.indexOf(keep) > -1 || keep === "__new__") fPlayerSelect.value = keep;
+}
+
+logBody.addEventListener("click", async function(ev){
+  var delId = ev.target.getAttribute("data-del");
+  var editId = ev.target.getAttribute("data-edit");
+  if (delId){
+    if (!confirm("Delete this entry?")) return;
+    try { await apiPost("deleteEntry", { rowId: parseInt(delId) }); await loadAll(); }
+    catch(e){ showMsg("Couldn't delete — try again.", true); }
+    return;
+  }
+  if (editId){ startEdit(parseInt(editId)); }
+});
+
+function startEdit(rowId){
+  var e = state.entries.find(function(x){ return x.rowId === rowId; });
+  if (!e) return;
+  var tr = [].find.call(logBody.querySelectorAll("tr"), function(row){
+    return row.querySelector('[data-edit="'+rowId+'"]');
+  });
+  if (!tr) return;
+  tr.innerHTML =
+    '<td><input type="number" value="'+e.session+'" style="width:52px;" id="edSession"></td>'+
+    '<td><input type="date" value="'+e.date+'" style="width:130px;" id="edDate"></td>'+
+    '<td><input type="text" value="'+escapeHtml(e.player)+'" style="width:110px;" id="edPlayer"></td>'+
+    '<td><input type="number" step="500" value="'+e.buyIn+'" style="width:80px;" id="edBuyIn"></td>'+
+    '<td><input type="number" step="any" value="'+(e.ret===null?'':e.ret)+'" placeholder="blank" style="width:80px;" id="edReturn"></td>'+
+    '<td colspan="2"><button class="ghost small" id="edSave">Save</button> <button class="ghost small" id="edCancel">Cancel</button></td>';
+  tr.querySelector("#edCancel").addEventListener("click", renderLog);
+  tr.querySelector("#edSave").addEventListener("click", async function(){
+    var payload = {
+      rowId: rowId,
+      session: parseInt(tr.querySelector("#edSession").value) || e.session,
+      date: tr.querySelector("#edDate").value || e.date,
+      player: tr.querySelector("#edPlayer").value.trim() || e.player,
+      buyIn: parseFloat(tr.querySelector("#edBuyIn").value),
+      ret: tr.querySelector("#edReturn").value.trim()===""? null : parseFloat(tr.querySelector("#edReturn").value)
+    };
+    try { await apiPost("updateEntry", payload); await loadAll(); }
+    catch(err){ showMsg("Couldn't save the edit — try again.", true); }
+  });
+}
+
+// ---------- charts (SVG, no dependencies) ----------
+function buildLineChart(container, series){
+  container.innerHTML = "";
+  var allDates = [];
+  series.forEach(function(s){ s.points.forEach(function(p){ allDates.push(p.x); }); });
+  allDates = Array.from(new Set(allDates)).sort();
+  if (allDates.length===0){ container.innerHTML='<div class="empty">Not enough data yet.</div>'; return; }
+  var W=700,H=260,padL=44,padR=14,padT=16,padB=30;
+  var allY=[]; series.forEach(function(s){ s.points.forEach(function(p){ allY.push(p.y); }); });
+  var yMin=Math.min(0,Math.min.apply(null,allY)), yMax=Math.max(0,Math.max.apply(null,allY));
+  if (yMin===yMax){ yMin-=1; yMax+=1; }
+  var yPad=(yMax-yMin)*0.08; yMin-=yPad; yMax+=yPad;
+  function xPos(d){ var idx=allDates.indexOf(d); return allDates.length===1? padL+(W-padL-padR)/2 : padL+(idx/(allDates.length-1))*(W-padL-padR); }
+  function yPos(v){ return padT + (1-(v-yMin)/(yMax-yMin))*(H-padT-padB); }
+  var svgns="http://www.w3.org/2000/svg";
+  var svg=document.createElementNS(svgns,"svg");
+  svg.setAttribute("viewBox","0 0 "+W+" "+H); svg.setAttribute("width","100%"); svg.style.display="block"; svg.style.overflow="visible";
+  var zl=document.createElementNS(svgns,"line");
+  zl.setAttribute("x1",padL); zl.setAttribute("x2",W-padR); zl.setAttribute("y1",yPos(0)); zl.setAttribute("y2",yPos(0));
+  zl.setAttribute("stroke",css("--line")); zl.setAttribute("stroke-dasharray","3,3"); svg.appendChild(zl);
+  [yMin,(yMin+yMax)/2,yMax].forEach(function(v){
+    var t=document.createElementNS(svgns,"text"); t.setAttribute("x",6); t.setAttribute("y",yPos(v)+4);
+    t.setAttribute("font-size","10.5"); t.setAttribute("fill",css("--ink-faint")); t.textContent=fmt(v); svg.appendChild(t);
+  });
+  [allDates[0], allDates[allDates.length-1]].forEach(function(d,i){
+    var t=document.createElementNS(svgns,"text"); t.setAttribute("x", i===0?padL:W-padR); t.setAttribute("y",H-8);
+    t.setAttribute("font-size","10.5"); t.setAttribute("fill",css("--ink-faint")); t.setAttribute("text-anchor",i===0?"start":"end");
+    t.textContent=d; svg.appendChild(t);
+  });
+  series.forEach(function(s){
+    if (!s.points.length) return;
+    var d=""; s.points.forEach(function(p,i){ d += (i===0?"M":"L")+xPos(p.x).toFixed(1)+","+yPos(p.y).toFixed(1)+" "; });
+    var path=document.createElementNS(svgns,"path"); path.setAttribute("d",d.trim()); path.setAttribute("fill","none");
+    path.setAttribute("stroke",s.color); path.setAttribute("stroke-width","2.2"); path.setAttribute("stroke-linejoin","round");
+    path.setAttribute("stroke-linecap","round"); svg.appendChild(path);
+    s.points.forEach(function(p){
+      var c=document.createElementNS(svgns,"circle"); c.setAttribute("cx",xPos(p.x)); c.setAttribute("cy",yPos(p.y)); c.setAttribute("r","3");
+      c.setAttribute("fill",s.color);
+      var title=document.createElementNS(svgns,"title"); title.textContent=s.name+" · "+p.x+" · "+fmtSigned(p.y); c.appendChild(title);
+      svg.appendChild(c);
+    });
+  });
+  container.appendChild(svg);
+}
+function buildBarChart(container, items){
+  container.innerHTML="";
+  if (!items.length){ container.innerHTML='<div class="empty">No data yet.</div>'; return; }
+  var maxAbs=Math.max.apply(null, items.map(function(i){return Math.abs(i.value);})) || 1;
+  var rowH=32, W=700, padL=110, padR=60, H=rowH*items.length+10;
+  var svgns="http://www.w3.org/2000/svg";
+  var svg=document.createElementNS(svgns,"svg"); svg.setAttribute("viewBox","0 0 "+W+" "+H); svg.setAttribute("width","100%"); svg.style.display="block";
+  var midX=padL+(W-padL-padR)/2;
+  items.forEach(function(item,i){
+    var y=i*rowH+6; var barMax=(W-padL-padR)/2-8; var w=(Math.abs(item.value)/maxAbs)*barMax;
+    var x=item.value>=0? midX : midX-w;
+    var label=document.createElementNS(svgns,"text"); label.setAttribute("x",padL-10); label.setAttribute("y",y+rowH/2+4);
+    label.setAttribute("text-anchor","end"); label.setAttribute("font-size","12.5"); label.setAttribute("fill",css("--ink"));
+    label.textContent=item.label; svg.appendChild(label);
+    var rect=document.createElementNS(svgns,"rect"); rect.setAttribute("x",x); rect.setAttribute("y",y+5);
+    rect.setAttribute("width",Math.max(w,1)); rect.setAttribute("height",rowH-14); rect.setAttribute("rx",3);
+    rect.setAttribute("fill", item.value>=0? css("--profit") : css("--loss")); svg.appendChild(rect);
+    var val=document.createElementNS(svgns,"text"); val.setAttribute("y",y+rowH/2+4); val.setAttribute("font-size","12"); val.setAttribute("fill",css("--ink-dim"));
+    if (item.value>=0){ val.setAttribute("x",x+w+8); val.setAttribute("text-anchor","start"); } else { val.setAttribute("x",x-8); val.setAttribute("text-anchor","end"); }
+    val.textContent=fmtSigned(item.value); svg.appendChild(val);
+  });
+  var mid=document.createElementNS(svgns,"line"); mid.setAttribute("x1",midX); mid.setAttribute("x2",midX); mid.setAttribute("y1",0); mid.setAttribute("y2",H);
+  mid.setAttribute("stroke",css("--line")); svg.appendChild(mid);
+  container.appendChild(svg);
+}
+
+// ---------- tabs ----------
+var tabs=document.querySelectorAll("nav.tabs button");
+tabs.forEach(function(btn){
+  btn.addEventListener("click", function(){
+    tabs.forEach(function(b){b.classList.remove("active");}); btn.classList.add("active");
+    ["log","players","trends","leaderboard","settle"].forEach(function(name){
+      document.getElementById("tab-"+name).style.display = (name===btn.dataset.tab) ? "" : "none";
+    });
+    if (btn.dataset.tab==="players") renderPlayers();
+    if (btn.dataset.tab==="trends") renderTrends();
+    if (btn.dataset.tab==="leaderboard") renderLeaderboard();
+    if (btn.dataset.tab==="settle") renderSettleOptions();
+  });
+});
+
+// ---------- players tab ----------
+var pName=document.getElementById("pName"), pPhone=document.getElementById("pPhone"), playerMsg=document.getElementById("playerMsg");
+document.getElementById("btnSavePlayer").addEventListener("click", async function(){
+  var name = pName.value.trim(), phone = pPhone.value.trim();
+  if (!name){ playerMsg.textContent="Enter a name."; playerMsg.className="msg err"; pName.focus(); return; }
+  try {
+    await apiPost("setPhone", { name: name, phone: phone });
+    await loadAll();
+    pName.value=""; pPhone.value="";
+    playerMsg.textContent = "Saved " + name + "."; playerMsg.className = "msg ok";
+    setTimeout(function(){ playerMsg.textContent=""; }, 2000);
+  } catch(e){ playerMsg.textContent="Couldn't save: " + e.message; playerMsg.className="msg err"; }
+});
+function renderPlayers(){
+  var body = document.getElementById("rosterBody");
+  document.getElementById("rosterEmpty").style.display = state.players.length ? "none" : "block";
+  body.innerHTML = "";
+  state.players.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(p){
+    var tr = document.createElement("tr");
+    tr.innerHTML = '<td>'+escapeHtml(p.name)+'</td>'+
+      '<td><input class="phone-input" value="'+escapeHtml(p.phone||"")+'" data-rosterphone="'+escapeHtml(p.name)+'" placeholder="add phone"></td>'+
+      '<td><button class="ghost small" data-rostersave="'+escapeHtml(p.name)+'">Save</button></td>';
+    body.appendChild(tr);
+  });
+  body.querySelectorAll("[data-rostersave]").forEach(function(btn){
+    btn.addEventListener("click", async function(){
+      var name = btn.getAttribute("data-rostersave");
+      var input = body.querySelector('[data-rosterphone="'+name+'"]');
+      try { await apiPost("setPhone", { name: name, phone: input.value.trim() }); await loadAll(); renderPlayers(); }
+      catch(e){ /* silent */ }
+    });
+  });
+}
+
+// ---------- trends ----------
+function renderTrends(){
+  var names=uniqueNames(); var players=computePlayerStats(); var byName={}; players.forEach(function(p){byName[p.name]=p;});
+  var cumSeries = names.filter(function(n){return byName[n];}).map(function(n){
+    var running=0;
+    var pts = byName[n].entries.map(function(e){ running += (e.ret-e.buyIn); return {x:e.date,y:running}; });
+    return { name:n, color:playerColor(n,names), points:pts };
+  });
+  buildLineChart(document.getElementById("cumChartWrap"), cumSeries);
+  document.getElementById("cumLegend").innerHTML = names.map(function(n){
+    return '<span><i class="swatch" style="background:'+playerColor(n,names)+'"></i>'+escapeHtml(n)+'</span>';
+  }).join("");
+
+  var multSeries = names.filter(function(n){return byName[n];}).map(function(n){
+    var pts = byName[n].entries.filter(function(e){return e.buyIn>0;}).map(function(e){ return {x:e.date,y:e.ret/e.buyIn}; });
+    return { name:n, color:playerColor(n,names), points:pts };
+  });
+  buildLineChart(document.getElementById("multChartWrap"), multSeries);
+  document.getElementById("multLegend").innerHTML = document.getElementById("cumLegend").innerHTML;
+
+  var insightEl=document.getElementById("leverageInsight");
+  var withMult = players.filter(function(p){return p.avgMult!==null;});
+  if (!withMult.length){ insightEl.textContent="Log a few resolved sessions to see leverage patterns."; }
+  else {
+    var highest = withMult.slice().sort(function(a,b){return b.avgMult-a.avgMult;})[0];
+    var mostVolatile = withMult.slice().sort(function(a,b){return stddev(b.mults)-stddev(a.mults);})[0];
+    var lines=[];
+    lines.push("<b>"+escapeHtml(highest.name)+"</b> has the highest average return multiplier at <b>"+fmt(highest.avgMult)+"×</b> — on a typical session they leave with "+fmt(highest.avgMult)+"× what they bought in for.");
+    if (withMult.length>1 && mostVolatile.mults.length>1){
+      lines.push("<b>"+escapeHtml(mostVolatile.name)+"</b> swings the most session-to-session (std. dev. "+fmt(stddev(mostVolatile.mults))+" on multiplier) — high variance cuts both ways.");
+    }
+    insightEl.innerHTML = lines.join(" ");
+  }
+}
+
+// ---------- leaderboard ----------
+function renderLeaderboard(){
+  var players = computePlayerStats();
+  document.getElementById("lbEmpty").style.display = players.length? "none":"block";
+  var body = document.getElementById("playerBody"); body.innerHTML="";
+  players.forEach(function(p){
+    var tr=document.createElement("tr");
+    tr.innerHTML = '<td>'+escapeHtml(p.name)+'</td><td class="num-cell">'+p.sessions+'</td>'+
+      '<td class="num-cell">'+fmt(p.taken)+'</td><td class="num-cell">'+fmt(p.returned)+'</td>'+
+      '<td class="num-cell '+(p.net>=0?"pos":"neg")+'">'+fmtSigned(p.net)+'</td>'+
+      '<td class="num-cell">'+(p.avgMult===null?"—":fmt(p.avgMult)+"×")+'</td>'+
+      '<td class="num-cell">'+Math.round(p.winRate*100)+'%</td>';
+    body.appendChild(tr);
+  });
+  buildBarChart(document.getElementById("lbChartWrap"), players.map(function(p){return {label:p.name,value:p.net};}));
+  var totalTaken=players.reduce(function(a,p){return a+p.taken;},0), totalReturned=players.reduce(function(a,p){return a+p.returned;},0);
+  var dates=state.entries.map(function(e){return e.date;}).sort(); var nightsSet=new Set(dates);
+  var unresolved = state.entries.filter(function(e){return e.ret===null;}).length;
+  document.getElementById("summaryStats").innerHTML = [
+    {num: state.entries.length, lbl:"Entries logged"},
+    {num: nightsSet.size, lbl:"Distinct dates"},
+    {num: players.length, lbl:"Players"},
+    {num: unresolved, lbl:"Still playing (unresolved)"},
+    {num: fmtSigned(totalReturned-totalTaken), lbl:"Table balance (resolved)", cls: totalReturned-totalTaken===0?"":"neg"}
+  ].map(function(s){ return '<div class="stat"><div class="num '+(s.cls||"")+'">'+s.num+'</div><div class="lbl">'+s.lbl+'</div></div>'; }).join("");
+  document.getElementById("rangeTag").textContent = dates.length? (dates[0]+" → "+dates[dates.length-1]) : "";
+}
+
+document.getElementById("btnSaveFactor").addEventListener("click", async function(){
+  var val = parseFloat(document.getElementById("convFactor").value);
+  var msgEl = document.getElementById("factorMsg");
+  if (isNaN(val) || val <= 0){ msgEl.textContent = "Enter a factor > 0."; return; }
+  try {
+    await apiPost("setSetting", { key: "conversionFactor", value: val });
+    await loadAll();
+    document.getElementById("convFactor").value = val;
+    msgEl.textContent = "Saved."; setTimeout(function(){ msgEl.textContent=""; }, 2000);
+    renderSettleOptionsKeepingSelection(Number(document.getElementById("settleSession").value));
+  } catch(e){ msgEl.textContent = "Couldn't save."; }
+});
+
+// ---------- settle ----------
+function sessionNumbers(){
+  var s={}; state.entries.forEach(function(e){ s[e.session]=true; });
+  return Object.keys(s).map(Number).sort(function(a,b){return b-a;});
+}
+function renderSettleOptions(){
+  var sel = document.getElementById("settleSession");
+  var cur = sel.value;
+  sel.innerHTML = sessionNumbers().map(function(n){
+    var st = state.sessionsStatus[n];
+    return '<option value="'+n+'">Session '+n+(st&&st.settled?' ✓ settled':'')+'</option>';
+  }).join("");
+  if (cur && sessionNumbers().indexOf(Number(cur))>-1) sel.value = cur;
+  sel.onchange = renderSettleList;
+  renderSettleList();
+}
+function renderSettleList(){
+  var sel = document.getElementById("settleSession");
+  var sessionNo = Number(sel.value);
+  var entries = state.entries.filter(function(e){ return e.session === sessionNo; });
+  var resolved = entries.filter(function(e){ return e.ret !== null; });
+  var unresolved = entries.filter(function(e){ return e.ret === null; });
+  var balEl = document.getElementById("settleBalance");
+  var totalIn = resolved.reduce(function(a,e){return a+e.buyIn;},0);
+  var totalOut = resolved.reduce(function(a,e){return a+e.ret;},0);
+  var status = state.sessionsStatus[sessionNo];
+  balEl.className = "msg " + (totalIn===totalOut ? "ok" : "err");
+  balEl.textContent = "Resolved total: " + fmt(totalIn) + " in / " + fmt(totalOut) + " out" +
+    (totalIn===totalOut ? " — balanced." : " — off by " + fmt(Math.abs(totalIn-totalOut)) + ", check entries.") +
+    (unresolved.length ? "  (" + unresolved.length + " player(s) not yet logged with a return, excluded.)" : "") +
+    (status && status.settled ? "  ✓ Marked settled." : "");
+
+  var nets = resolved.map(function(e){ return { name:e.player, net: e.ret - e.buyIn }; });
+  var debtors = nets.filter(function(n){return n.net<0;}).map(function(n){return {name:n.name, amt:-n.net};}).sort(function(a,b){return b.amt-a.amt;});
+  var creditors = nets.filter(function(n){return n.net>0;}).map(function(n){return {name:n.name, amt:n.net};}).sort(function(a,b){return b.amt-a.amt;});
+  var transfers=[]; var i=0,j=0;
+  while (i<debtors.length && j<creditors.length){
+    var d=debtors[i], c=creditors[j]; var amt=Math.min(d.amt,c.amt);
+    if (amt>0.01) transfers.push({from:d.name, to:c.name, amount:amt});
+    d.amt-=amt; c.amt-=amt;
+    if (d.amt<=0.01) i++; if (c.amt<=0.01) j++;
+  }
+
+  var wrap = document.getElementById("settleList");
+  if (!transfers.length){ wrap.innerHTML = '<div class="empty">Nothing to settle for this session yet.</div>'; return; }
+  wrap.innerHTML = "";
+
+  async function onSend(){
+    try { await apiPost("markSettled", { session: sessionNo }); await loadAll(); renderSettleOptionsKeepingSelection(sessionNo); }
+    catch(e){ /* silent — the WhatsApp tab still opened either way */ }
+  }
+
+  function personCard(name, message){
+    var p = findPlayer(name);
+    var phone = p ? (p.phone||"").replace(/[^0-9]/g,"") : "";
+    if (phone){
+      var a = document.createElement("a");
+      a.className = "wa-btn"; a.target = "_blank";
+      a.href = "https://wa.me/"+phone+"?text="+encodeURIComponent(message);
+      a.textContent = "Send on WhatsApp";
+      a.addEventListener("click", onSend);
+      return a;
+    }
+    var span = document.createElement("span");
+    span.style.cssText = "display:flex;gap:6px;align-items:center;";
+    span.innerHTML = '<input class="phone-input" placeholder="phone incl. country code" data-savephone="'+escapeHtml(name)+'"><button class="ghost small" data-savephonebtn="'+escapeHtml(name)+'">Save</button>';
+    return span;
+  }
+
+  transfers.forEach(function(t){
+    var factor = state.settings.conversionFactor || 10;
+    var currencyAmt = t.amount / factor;
+    var debtorMsg = "You owe " + fmt(currencyAmt) + " to " + t.to + " for Session " + sessionNo + ".";
+    var creditorMsg = t.from + " owes you " + fmt(currencyAmt) + " for Session " + sessionNo + ".";
+    var card = document.createElement("div"); card.className="settle-card";
+    var text = document.createElement("div"); text.className="settle-text";
+    text.innerHTML = '<b>'+escapeHtml(t.from)+'</b> owes <b class="neg">'+fmt(currencyAmt)+'</b> to <b>'+escapeHtml(t.to)+'</b> <span class="tag">('+fmt(t.amount)+' chips)</span>';
+    var btns = document.createElement("div"); btns.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;";
+    btns.appendChild(personCard(t.from, debtorMsg));
+    btns.appendChild(personCard(t.to, creditorMsg));
+    card.appendChild(text); card.appendChild(btns);
+    wrap.appendChild(card);
+  });
+  wrap.querySelectorAll("[data-savephonebtn]").forEach(function(btn){
+    btn.addEventListener("click", async function(){
+      var name = btn.getAttribute("data-savephonebtn");
+      var input = wrap.querySelector('[data-savephone="'+name+'"]');
+      var phone = input.value.trim();
+      if (!phone) return;
+      try { await apiPost("setPhone", { name: name, phone: phone }); await loadAll(); renderSettleOptionsKeepingSelection(sessionNo); }
+      catch(e){ /* silent */ }
+    });
+  });
+}
+function renderSettleOptionsKeepingSelection(sessionNo){
+  renderSettleOptions();
+  var sel = document.getElementById("settleSession");
+  sel.value = sessionNo;
+  renderSettleList();
+}
+
+// ---------- export ----------
+document.getElementById("btnExportJson").addEventListener("click", function(){
+  var blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+  triggerDownload(blob, "poker-ledger-backup-"+todayISO()+".json");
+});
+document.getElementById("btnExportCsv").addEventListener("click", function(){
+  var rows=[["session","date","player","buyIn","return","net","multiplier"]];
+  sortedEntries().forEach(function(e){
+    var net = e.ret===null? "" : (e.ret-e.buyIn);
+    var mult = (e.ret===null||e.buyIn<=0)? "" : (e.ret/e.buyIn).toFixed(3);
+    rows.push([e.session,e.date,e.player,e.buyIn,(e.ret===null?"":e.ret),net,mult]);
+  });
+  var csv = rows.map(function(r){ return r.map(csvCell).join(","); }).join("\n");
+  triggerDownload(new Blob([csv],{type:"text/csv"}), "poker-ledger-"+todayISO()+".csv");
+});
+function csvCell(v){ v=String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+async function triggerDownload(blob, filename){
+  var url = URL.createObjectURL(blob);
+  var a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+document.getElementById("btnRefresh").addEventListener("click", loadAll);
+
+// ---------- historical import ----------
+// Name mapping applied: CM->Nitish, Malik/Mailk/Maalik->Dipankar, Batista->Debashish, Spensor->Spencer
+var SEED_PLAYERS = ["Bokaro","Nitish","Dipankar","Debashish","Spencer","Satyam","Shantanu","Gurudutt","Saumyajeet","Shahid"];
+var HISTORICAL = [
+  {session:1,date:"2026-09-06",player:"Bokaro",buyIn:2500,ret:1190},
+  {session:1,date:"2026-09-06",player:"Debashish",buyIn:1000,ret:3550},
+  {session:1,date:"2026-09-06",player:"Nitish",buyIn:2000,ret:2125},
+  {session:1,date:"2026-09-06",player:"Dipankar",buyIn:1500,ret:null},
+  {session:1,date:"2026-09-06",player:"Satyam",buyIn:500,ret:null},
+  {session:1,date:"2026-09-06",player:"Shantanu",buyIn:500,ret:385},
+  {session:1,date:"2026-09-06",player:"Spencer",buyIn:1500,ret:2250},
+  {session:2,date:"2026-09-07",player:"Bokaro",buyIn:1000,ret:2795},
+  {session:2,date:"2026-09-07",player:"Debashish",buyIn:1000,ret:1305},
+  {session:2,date:"2026-09-07",player:"Nitish",buyIn:500,ret:410},
+  {session:2,date:"2026-09-07",player:"Shantanu",buyIn:1000,ret:490},
+  {session:2,date:"2026-09-07",player:"Spencer",buyIn:1500,ret:null},
+  {session:3,date:"2026-09-08",player:"Gurudutt",buyIn:1500,ret:null},
+  {session:3,date:"2026-09-08",player:"Dipankar",buyIn:1000,ret:null},
+  {session:3,date:"2026-09-08",player:"Debashish",buyIn:1000,ret:1100},
+  {session:3,date:"2026-09-08",player:"Bokaro",buyIn:1000,ret:1560},
+  {session:3,date:"2026-09-08",player:"Nitish",buyIn:500,ret:785},
+  {session:3,date:"2026-09-08",player:"Satyam",buyIn:2000,ret:4240},
+  {session:3,date:"2026-09-08",player:"Spencer",buyIn:1000,ret:315},
+  {session:4,date:"2026-09-09",player:"Bokaro",buyIn:3000,ret:5500},
+  {session:4,date:"2026-09-09",player:"Satyam",buyIn:500,ret:4000},
+  {session:4,date:"2026-09-09",player:"Nitish",buyIn:1500,ret:null},
+  {session:4,date:"2026-09-09",player:"Debashish",buyIn:2000,ret:null},
+  {session:4,date:"2026-09-09",player:"Dipankar",buyIn:1500,ret:null},
+  {session:4,date:"2026-09-09",player:"Shantanu",buyIn:1000,ret:null},
+  {session:5,date:"2026-09-10",player:"Bokaro",buyIn:2500,ret:715},
+  {session:5,date:"2026-09-10",player:"Satyam",buyIn:2000,ret:500},
+  {session:5,date:"2026-09-10",player:"Dipankar",buyIn:1500,ret:4850},
+  {session:5,date:"2026-09-10",player:"Nitish",buyIn:500,ret:685},
+  {session:5,date:"2026-09-10",player:"Shantanu",buyIn:500,ret:null},
+  {session:5,date:"2026-09-10",player:"Debashish",buyIn:500,ret:750},
+  {session:6,date:"2026-09-11",player:"Bokaro",buyIn:2000,ret:1305},
+  {session:6,date:"2026-09-11",player:"Satyam",buyIn:2500,ret:3785},
+  {session:6,date:"2026-09-11",player:"Dipankar",buyIn:3000,ret:805},
+  {session:6,date:"2026-09-11",player:"Nitish",buyIn:500,ret:795},
+  {session:6,date:"2026-09-11",player:"Debashish",buyIn:2500,ret:3810},
+  {session:7,date:"2026-09-14",player:"Bokaro",buyIn:5000,ret:2235},
+  {session:7,date:"2026-09-14",player:"Satyam",buyIn:null,ret:2760},
+  {session:7,date:"2026-09-14",player:"Nitish",buyIn:null,ret:5505},
+  {session:7,date:"2026-09-14",player:"Debashish",buyIn:3000,ret:null},
+  {session:7,date:"2026-09-14",player:"Dipankar",buyIn:1500,ret:null},
+  {session:7,date:"2026-09-14",player:"Shantanu",buyIn:1000,ret:null},
+  {session:8,date:"2026-09-16",player:"Bokaro",buyIn:500,ret:510},
+  {session:8,date:"2026-09-16",player:"Satyam",buyIn:1500,ret:2870},
+  {session:8,date:"2026-09-16",player:"Nitish",buyIn:3000,ret:2230},
+  {session:8,date:"2026-09-16",player:"Debashish",buyIn:1000,ret:1420},
+  {session:8,date:"2026-09-16",player:"Dipankar",buyIn:1500,ret:2470},
+  {session:8,date:"2026-09-16",player:"Saumyajeet",buyIn:2000,ret:null}
+];
+document.getElementById("btnImportHistory").addEventListener("click", async function(){
+  if (state.entries.length > 0){
+    if (!confirm("You already have "+state.entries.length+" entries logged. Import the 8 historical sessions anyway? (This adds them; it won't duplicate-check.)")) return;
+  } else {
+    if (!confirm("Import 8 historical sessions (48 entries) with mapped player names? No WhatsApp messages are sent for historical data.")) return;
+  }
+  var btn = document.getElementById("btnImportHistory");
+  btn.disabled = true;
+  btn.textContent = "Adding players...";
+  for (var s=0;s<SEED_PLAYERS.length;s++){
+    try { await apiPost("addPlayer", { name: SEED_PLAYERS[s], phone: "" }); } catch(e){ /* continue */ }
+  }
+  for (var i=0;i<HISTORICAL.length;i++){
+    btn.textContent = "Importing " + (i+1) + "/" + HISTORICAL.length + "...";
+    try { await apiPost("addEntry", HISTORICAL[i]); } catch(e){ /* continue */ }
+  }
+  btn.textContent = "Import historical data"; btn.disabled = false;
+  await loadAll();
+  showMsg("Historical data imported (8 sessions, names mapped).", false);
+});
+
+// ---------- init ----------
+async function renderAll(){
+  renderLog();
+  // session # is only ever set by "Start new session" — no auto-fill here
+  if (document.getElementById("tab-players").style.display !== "none") renderPlayers();
+  if (document.getElementById("tab-trends").style.display !== "none") renderTrends();
+  if (document.getElementById("tab-leaderboard").style.display !== "none") renderLeaderboard();
+  if (document.getElementById("tab-settle").style.display !== "none") renderSettleOptions();
+  var dates = state.entries.map(function(e){return e.date;}).sort();
+  document.getElementById("rangeTag").textContent = dates.length ? (dates[0]+" → "+dates[dates.length-1]) : "";
+}
+// fSession starts blank — set only via "Start new session"
+loadAll();
+window.addEventListener("resize", function(){
+  if (document.getElementById("tab-trends").style.display !== "none") renderTrends();
+  if (document.getElementById("tab-leaderboard").style.display !== "none") renderLeaderboard();
+});
+})();
+</script>
+</body>
+</html>
