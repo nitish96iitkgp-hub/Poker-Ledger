@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Poker Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0:#eef1f5; --bg-1:#f6f7f9; --panel:#ffffff; --panel-alt:#fafbfc;
+    --line:#dde1e8; --line-soft:#e8ebef;
+    --ink:#1c2230; --ink-dim:#5b6475; --ink-faint:#8891a0;
+    --accent:#2f5fd6; --accent-dim:#eef1fc; --accent-hover:#274ec2;
+    --profit:#158a5c; --loss:#c23b3b;
+    --radius:12px; --shadow:0 1px 2px rgba(20,25,40,.04), 0 8px 20px rgba(20,25,40,.06);
+    box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  *{box-sizing:border-box;} html,body{height:100%;}
+  body{margin:0;background:var(--bg-0);color:var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px;}
+  header.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding-top:env(safe-area-inset-top,0px);}
+  header.top h1{font-weight:800;font-size:clamp(22px,3.6vw,28px);margin:0;letter-spacing:-.015em;color:var(--ink);}
+  .tag{color:var(--ink-faint);font-size:12.5px;}
+  header.top .tag{color:var(--ink-faint);font-size:13px;}
+  #syncBanner{display:none;background:#fdf1ee;border:1px solid #f0c9bd;color:#9a3f26;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:16px;}
+  #syncBanner.show{display:block;}
+  nav.tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--line);overflow-x:auto;}
+  nav.tabs button{background:none;border:none;color:var(--ink-faint);font-family:inherit;font-size:13.5px;font-weight:600;padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
+  nav.tabs button.active{color:var(--accent);border-bottom-color:var(--accent);}
+  nav.subtabs, nav.subtabs2{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+  nav.subtabs button, nav.subtabs2 button{background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);font-family:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;cursor:pointer;}
+  nav.subtabs button.active, nav.subtabs2 button.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
+  nav.subtabs button:hover:not(.active), nav.subtabs2 button:hover:not(.active){border-color:var(--ink-faint);}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
+  .panel + .panel{margin-top:16px;}
+  .panel h2{font-weight:700;font-size:16px;margin:0 0 14px;color:var(--ink);letter-spacing:-.005em;}
+  .panel p.sub{color:var(--ink-faint);font-size:13px;margin:-10px 0 16px;}
+  .entry-grid{display:grid;grid-template-columns:auto 1fr 1.3fr 1fr 1fr auto;gap:10px;align-items:end;}
+  @media (max-width:760px){.entry-grid{grid-template-columns:1fr 1fr;}}
+  .field label{display:block;font-size:12px;color:var(--ink-faint);margin-bottom:6px;font-weight:600;}
+  .field input,.field select{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px 12px;font-size:14.5px;font-family:inherit;}
+  .field input:focus,.field select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);}
+  .stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden;}
+  .stepper button{background:var(--panel-alt);border:none;color:var(--ink);width:34px;height:40px;font-size:17px;cursor:pointer;}
+  .stepper button:hover{background:var(--accent-dim);color:var(--accent);}
+  .stepper input{border:none;background:transparent;text-align:center;width:100%;font-size:14.5px;color:var(--ink);}
+  button.primary{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px 20px;font-weight:600;font-size:13.5px;cursor:pointer;font-family:inherit;}
+  button.primary:hover{background:var(--accent-hover);}
+  button.primary:disabled{opacity:.5;cursor:default;}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;}
+  button.ghost:hover{border-color:var(--accent);color:var(--accent);}
+  button.small{padding:5px 10px;font-size:12px;}
+  .session-row{display:flex;gap:10px;align-items:end;margin-bottom:14px;flex-wrap:wrap;}
+  .session-row .field{max-width:140px;}
+  .msg{font-size:13px;margin-top:10px;min-height:16px;}
+  .msg.err{color:var(--loss);} .msg.ok{color:var(--profit);}
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
+  .stat{background:var(--panel-alt);border:1px solid var(--line-soft);border-radius:10px;padding:14px 16px;}
+  .stat .num{font-weight:700;font-size:22px;letter-spacing:-.01em;}
+  .stat .lbl{font-size:12px;color:var(--ink-faint);margin-top:2px;}
+  .pos{color:var(--profit);} .neg{color:var(--loss);}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;color:var(--ink-faint);font-weight:600;font-size:12px;padding:8px 8px;border-bottom:1px solid var(--line);}
+  td{padding:8px 8px;border-bottom:1px solid var(--line-soft);}
+  tr:hover td{background:var(--bg-1);}
+  .num-cell{font-variant-numeric:tabular-nums;text-align:right;}
+  .table-scroll{overflow-x:auto;}
+  .row-actions{white-space:nowrap;}
+  .row-actions button{background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:13px;padding:2px 6px;}
+  .row-actions button:hover{color:var(--accent);}
+  .row-actions button.del:hover{color:var(--loss);}
+  .swatch{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle;}
+  .badge{display:inline-block;font-size:11px;background:var(--accent-dim);color:var(--accent);border-radius:5px;padding:2px 6px;}
+  .empty{color:var(--ink-faint);font-size:14px;padding:30px 10px;text-align:center;}
+  .legend{display:flex;flex-wrap:wrap;gap:12px 18px;margin:10px 0 4px;font-size:12.5px;color:var(--ink-dim);}
+  .legend span{display:flex;align-items:center;}
+  svg text{font-family:'Inter',sans-serif;}
+  .insight{background:var(--panel-alt);border-left:3px solid var(--accent);border-radius:6px;padding:12px 14px;font-size:13.5px;color:var(--ink-dim);line-height:1.5;margin-top:14px;}
+  .insight b{color:var(--ink);}
+  .footer-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;}
+  .settle-card{background:var(--panel-alt);border:1px solid var(--line-soft);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+  .settle-text{font-size:14px;line-height:1.7;}
+  .wa-btn{background:#1f8a5c;color:#fff;border:1px solid #1a7750;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;}
+  .wa-btn:hover{background:#1a7750;}
+  .phone-input{width:150px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:6px 8px;font-size:12.5px;}
+  ::selection{background:var(--accent);color:#fff;}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Poker Ledger</h1>
+      <div class="tag">Synced to Google Sheets &middot; leverage &amp; trend analysis &middot; <b>Build 34</b></div>
+    </div>
+    <div class="tag" id="rangeTag"></div>
+  </header>
+  <div id="syncBanner"></div>
+
+  <nav class="tabs">
+    <button data-tab="log" class="active">Log</button>
+    <button data-tab="players">Players</button>
+    <button data-tab="trends">Trends</button>
+    <button data-tab="daily">By Session</button>
+    <button data-tab="leaderboard">Leaderboard</button>
+    <button data-tab="settle">Settle</button>
+    <button data-tab="analytics">Analytics</button>
+  </nav>
+
+  <!-- LOG -->
+  <section id="tab-log">
+    <div class="panel">
+      <h2>Session</h2>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <button class="primary" id="btnNewSession">Start new session</button>
+        <div class="field" style="max-width:220px;">
+          <label for="resumeSession">…or resume an existing one</label>
+          <select id="resumeSession"><option value="">Pick a session</option></select>
+        </div>
+      </div>
+      <div class="session-row" style="margin-top:14px;">
+        <div class="field">
+          <label for="fSession">Session #</label>
+          <input id="fSession" type="number" min="1" placeholder="—">
+        </div>
+        <div class="field">
+          <label for="fDate">Date</label>
+          <input id="fDate" type="date">
+        </div>
+      </div>
+      <div class="msg" id="sessionHint">No session started yet — click "Start new session" above.</div>
+
+      <h2 style="margin-top:6px;">New entry</h2>
+      <p class="sub">Name, buy-in, return — log each player once the game has ended and you know both numbers.</p>
+      <div class="entry-grid">
+        <div class="field" style="min-width:120px;">
+          <label>Buy-in</label>
+          <div class="stepper">
+            <button type="button" id="buyMinus">−</button>
+            <input id="fBuyIn" type="number" value="500" step="500" min="0">
+            <button type="button" id="buyPlus">+</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fPlayerSelect">Player</label>
+          <select id="fPlayerSelect">
+            <option value="">Select player…</option>
+            <option value="__new__">+ Add new player</option>
+          </select>
+          <input id="fPlayerNew" type="text" placeholder="New player name" style="display:none;margin-top:6px;">
+        </div>
+        <div class="field">
+          <label for="fReturn">Return</label>
+          <input id="fReturn" type="number" inputmode="decimal" min="0" step="any" placeholder="e.g. 1250">
+        </div>
+        <div class="field">
+          <label for="fPhone">Phone (optional)</label>
+          <input id="fPhone" type="text" placeholder="e.g. 9198xxxxxxx">
+        </div>
+        <div class="field">
+          <button class="primary" id="btnAdd" style="width:100%;">Log entry</button>
+        </div>
+      </div>
+      <div class="msg" id="formMsg"></div>
+    </div>
+
+    <div class="panel">
+      <h2>All entries</h2>
+      <div class="table-scroll">
+        <table id="logTable">
+          <thead><tr><th>S#</th><th>Date</th><th>Name</th><th class="num-cell">Buy-in</th><th class="num-cell">Return</th><th class="num-cell">Net</th><th class="num-cell">Mult.</th><th></th></tr></thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="logEmpty" style="display:none;">No sessions logged yet.</div>
+      <div class="footer-actions">
+        <button class="ghost" id="btnImportHistory">Import historical data</button>
+        <button class="ghost" id="btnExportJson">Backup (.json)</button>
+        <button class="ghost" id="btnExportCsv">Export CSV</button>
+        <button class="ghost" id="btnRefresh">Refresh from Sheet</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAYERS -->
+  <section id="tab-players" style="display:none;">
+    <div class="panel">
+      <h2>Add / update a player</h2>
+      <p class="sub">Set names and phone numbers up front — the entry form's autocomplete and the Settle tab's WhatsApp buttons both use this list.</p>
+      <div class="entry-grid" style="grid-template-columns:1.3fr 1fr auto;">
+        <div class="field"><label for="pName">Name</label><input id="pName" list="nameList" placeholder="Player name" autocomplete="off"><datalist id="nameList"></datalist></div>
+        <div class="field"><label for="pPhone">Phone (with country code)</label><input id="pPhone" type="text" placeholder="e.g. 9198xxxxxxx"></div>
+        <div class="field"><button class="primary" id="btnSavePlayer" style="width:100%;">Add / update player</button></div>
+      </div>
+      <div class="msg" id="playerMsg"></div>
+    </div>
+    <div class="panel">
+      <h2>Roster</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Name</th><th>Phone</th><th></th></tr></thead>
+          <tbody id="rosterBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="rosterEmpty" style="display:none;">No players added yet.</div>
+    </div>
+  </section>
+
+  <!-- TRENDS -->
+  <section id="tab-trends" style="display:none;">
+    <nav class="subtabs">
+      <button data-subtab="cum" class="active">Cumulative net</button>
+      <button data-subtab="buyin">Buy-in per player</button>
+      <button data-subtab="mult">Leverage</button>
+    </nav>
+    <div class="panel" id="trendPanel-cum">
+      <h2>Cumulative net over time</h2>
+      <p class="sub">Running profit/loss per player, by session number. Only resolved sessions count. Click a name below to highlight their line.</p>
+      <div id="cumChartWrap"></div>
+      <div class="legend" id="cumLegend"></div>
+    </div>
+    <div class="panel" id="trendPanel-buyin" style="display:none;">
+      <h2>Buy-in per session, by player</h2>
+      <p class="sub">Who took how much into each game — includes sessions still in progress. Click a name below to highlight their line.</p>
+      <div id="buyInChartWrap"></div>
+      <div class="legend" id="buyInLegend"></div>
+    </div>
+    <div class="panel" id="trendPanel-mult" style="display:none;">
+      <h2>Leverage — return multiplier per session</h2>
+      <p class="sub">Returned ÷ taken. Above 1.0 = grew the buy-in; below = lost part of it. Click a name below to highlight their line.</p>
+      <div id="multChartWrap"></div>
+      <div class="legend" id="multLegend"></div>
+      <div class="insight" id="leverageInsight"></div>
+    </div>
+  </section>
+
+  <!-- DAILY -->
+  <section id="tab-daily" style="display:none;">
+    <div class="panel">
+      <h2>Table activity by session</h2>
+      <p class="sub">Total chips bought in per session, across all players — how big each game was. Two sessions on the same date still show as separate bars.</p>
+      <div id="dailyActivityWrap"></div>
+    </div>
+    <div class="panel">
+      <h2>Player performance by session</h2>
+      <p class="sub">Net result per session for one player, dated for reference.</p>
+      <div class="field" style="max-width:220px;margin-bottom:12px;">
+        <label for="dailyPlayerSelect">Player</label>
+        <select id="dailyPlayerSelect"></select>
+      </div>
+      <div id="dailyPlayerWrap"></div>
+    </div>
+    <div class="panel">
+      <h2>Insights</h2>
+      <div id="insightsList"></div>
+    </div>
+  </section>
+
+  <!-- LEADERBOARD -->
+  <section id="tab-leaderboard" style="display:none;">
+    <div class="panel"><h2>Standings</h2><div class="stat-row" id="summaryStats"></div></div>
+    <div class="panel"><h2>Net profit by player</h2><div id="lbChartWrap"></div></div>
+    <div class="panel">
+      <h2>Player breakdown</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Player</th><th class="num-cell">Sessions</th><th class="num-cell">Taken</th><th class="num-cell">Returned</th><th class="num-cell">Net</th><th class="num-cell">Avg mult.</th><th class="num-cell">Win rate</th></tr></thead>
+          <tbody id="playerBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="lbEmpty" style="display:none;">No data yet.</div>
+    </div>
+  </section>
+
+  <!-- SETTLE -->
+  <section id="tab-settle" style="display:none;">
+    <div class="panel">
+      <h2>Settle a session</h2>
+      <p class="sub">Minimum transfers to net a session to zero. Only players with a return entered are included.</p>
+      <div class="session-row">
+        <div class="field" style="max-width:200px;">
+          <label for="settleSession">Session</label>
+          <select id="settleSession"></select>
+        </div>
+        <div class="field" style="max-width:170px;">
+          <label for="convFactor">Chips per currency unit</label>
+          <input id="convFactor" type="number" min="0.01" step="any" value="10">
+        </div>
+        <button class="ghost" id="btnSaveFactor">Save factor</button>
+        <div class="tag" id="factorMsg" style="align-self:center;"></div>
+      </div>
+      <div id="settleBalance" class="msg" style="margin-top:10px;"></div>
+      <div id="settleList" style="margin-top:14px;"></div>
+    </div>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section id="tab-analytics" style="display:none;">
+    <nav class="subtabs2" id="analyticsSubtabs">
+      <button data-asub="stats" class="active">Stats</button>
+      <button data-asub="rivalry">Rivalry</button>
+      <button data-asub="nemesis">Nemesis</button>
+      <button data-asub="kryptonite">Kryptonite</button>
+      <button data-asub="risk">Risk</button>
+      <button data-asub="check">Check</button>
+    </nav>
+    <div class="tag" id="analyticsFilterNote" style="margin-bottom:12px;"></div>
+
+    <div class="panel" id="analyticsPanel-stats">
+      <h2>Player stats</h2>
+      <p class="sub">Full breakdown per player, including streaks and volatility.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Player</th><th class="num-cell">Sessions</th><th class="num-cell">Buy-in</th><th class="num-cell">Return</th><th class="num-cell">Net</th><th class="num-cell">Win rate</th><th class="num-cell">Avg/session</th><th class="num-cell">ROI %</th><th class="num-cell">Std dev</th><th class="num-cell">Best win</th><th class="num-cell">Worst loss</th><th class="num-cell">Longest win streak</th><th class="num-cell">Longest loss streak</th></tr></thead>
+          <tbody id="statsBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="statsEmpty" style="display:none;">No data yet.</div>
+      <div class="insight">
+        <b>How these are calculated:</b><br>
+        ROI % = Net profit ÷ total buy-in × 100.<br>
+        Std dev = population standard deviation of per-session profit — how much a player's results swing session to session.<br>
+        Longest win/loss streak = longest run of consecutive sessions (in session-number order) with positive / negative profit.
+      </div>
+    </div>
+
+    <div class="panel" id="analyticsPanel-rivalry" style="display:none;">
+      <h2>Rivalry matrix</h2>
+      <p class="sub">Net ₹ flow between every pair of players who've shared a table.</p>
+      <div class="table-scroll">
+        <table id="rivalryTable"></table>
+      </div>
+      <div class="empty" id="rivalryEmpty" style="display:none;">Not enough shared sessions yet.</div>
+      <div class="insight">
+        <b>How this is calculated:</b><br>
+        For every session, the minimum-transfer settlement (same algorithm as the Settle tab) is computed, and each transfer is added to that pair's running total. Row → column shown is (amount row paid column) − (amount column paid row), summed across every session they've shared. Green = row is a net creditor of column; red = row is a net debtor.
+      </div>
+    </div>
+
+    <div class="panel" id="analyticsPanel-nemesis" style="display:none;">
+      <h2>Nemesis</h2>
+      <p class="sub">Per player: who's taken the most money from you, and who you've taken the most from — cumulative, across every shared session.</p>
+      <div id="nemesisResult"></div>
+      <div class="empty" id="nemesisEmpty" style="display:none;">Not enough shared sessions yet.</div>
+      <div class="insight">
+        <b>How this is calculated:</b><br>
+        Built on the same pairwise net-flow numbers as the Rivalry matrix. For each player, their <b>Nemesis</b> is whoever they've net paid the most to across all shared sessions; their <b>Favorite target</b> is whoever has net paid them the most. A pair only counts if they've shared more than 5% of the subject's sessions — a single coincidental encounter can't produce a false nemesis.
+      </div>
+    </div>
+
+    <div class="panel" id="analyticsPanel-kryptonite" style="display:none;">
+      <h2>Kryptonite &amp; lucky charm</h2>
+      <p class="sub">Does this player's result change depending on who else is at the table?</p>
+      <div class="field" style="max-width:220px;margin-bottom:14px;">
+        <label for="kryptoPlayerSelect">Player</label>
+        <select id="kryptoPlayerSelect"></select>
+      </div>
+      <div id="kryptoResult"></div>
+      <div class="insight">
+        <b>How this is calculated:</b><br>
+        For the selected player, and every other player they've shared more than 5% of their sessions with: average profit in sessions where that other player <i>was</i> at the table, minus average profit in sessions where they <i>weren't</i>. A positive gap = lucky charm; negative = kryptonite. The 5% co-occurrence floor keeps a single coincidental encounter from producing a false pattern; sample sizes are still shown since small ones (2-3 sessions) aren't statistically strong — treat those as anecdotal.
+      </div>
+    </div>
+
+    <div class="panel" id="analyticsPanel-risk" style="display:none;">
+      <h2>Risk-takers</h2>
+      <p class="sub">Who's playing the biggest, swingiest games relative to their own stakes.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Player</th><th class="num-cell">Sessions</th><th class="num-cell">Avg buy-in</th><th class="num-cell">Std dev of profit</th><th class="num-cell">Risk score</th></tr></thead>
+          <tbody id="riskBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="riskEmpty" style="display:none;">No data yet.</div>
+      <div class="insight">
+        <b>How this is calculated:</b><br>
+        Risk score = (std. dev. of session profit) ÷ (average buy-in). This measures how wildly a player's results swing <i>relative to their own stake size</i> — not just raw volatility, since someone buying in for 5,000 with a 1,000 swing is proportionally steadier than someone buying in for 500 with a 400 swing. Higher score = bigger risk-taker relative to how they actually play.
+      </div>
+    </div>
+
+    <div class="panel" id="analyticsPanel-check" style="display:none;">
+      <h2>Data check</h2>
+      <p class="sub">Every session should be zero-sum (total returned ≈ total bought in). Flags data-entry errors.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Session</th><th>Date</th><th class="num-cell">Players</th><th class="num-cell">Total in</th><th class="num-cell">Total out</th><th>Status</th></tr></thead>
+          <tbody id="checkBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="checkEmpty" style="display:none;">No sessions logged yet.</div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+var API_URL = "https://script.google.com/macros/s/AKfycbyFCWKbi53W4NVgDWFgb61Cc0m5PltZogfoxwwmsEMwr7rzzMK1IElenkJl9rC7n3azyw/exec";
+
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fmt(n){ return (Math.round(n*100)/100).toLocaleString(undefined,{maximumFractionDigits:2}); }
+function fmtSigned(n){ return (n>=0?"+":"−") + fmt(Math.abs(n)); }
+function fmtDate(iso){
+  if (!iso) return "";
+  var parts = String(iso).slice(0,10).split("-"); // yyyy-mm-dd -> dd-mm-yy
+  if (parts.length !== 3) return iso;
+  return parts[2] + "-" + parts[1] + "-" + parts[0].slice(2);
+}
+function escapeHtml(s){ var d=document.createElement("div"); d.textContent=s==null?"":s; return d.innerHTML; }
+
+var state = { entries: [], players: [], nextSession: 1, sessionsStatus: {}, settings: { conversionFactor: 10 } };
+var loading = false;
+
+function banner(text, isErr){
+  var el = document.getElementById("syncBanner");
+  if (!text){ el.classList.remove("show"); return; }
+  el.textContent = text; el.classList.add("show");
+}
+
+async function apiGet(){
+  var res = await fetch(API_URL);
+  if (!res.ok) throw new Error("GET failed: " + res.status);
+  return res.json();
+}
+async function apiPost(action, payload){
+  var res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: action, payload: payload })
+  });
+  if (!res.ok) throw new Error("POST failed: " + res.status);
+  var data = await res.json();
+  if (data && data.ok === false) throw new Error(data.error || "Backend rejected the request");
+  return data;
+}
+
+async function loadAll(){
+  loading = true;
+  try {
+    var data = await apiGet();
+    state.entries = data.entries || [];
+    state.players = data.players || [];
+    state.nextSession = data.nextSession || 1;
+    state.sessionsStatus = data.sessionsStatus || {};
+    state.settings = data.settings || { conversionFactor: 10 };
+    var cf = document.getElementById("convFactor");
+    if (cf && document.activeElement !== cf) cf.value = state.settings.conversionFactor;
+    banner(null);
+  } catch(e){
+    banner("Couldn't reach the Google Sheet — check your connection. Working from last loaded data.", true);
+  }
+  loading = false;
+  renderAll();
+}
+
+// ---------- derived ----------
+function playerColor(name, names){
+  // Evenly spaced around the full hue wheel, so colors stay maximally distinct
+  // no matter how many players there are — never repeats or clusters like a
+  // fixed small palette does once you pass ~8 people.
+  var idx = names.indexOf(name);
+  var n = Math.max(names.length, 1);
+  var hue = Math.round((idx * 360 / n) % 360);
+  return "hsl(" + hue + ", 68%, 42%)";
+}
+function sortedEntries(){ return state.entries.slice().sort(function(a,b){ return (a.session-b.session) || a.date.localeCompare(b.date); }); }
+function uniqueNames(){ var s={}; state.entries.forEach(function(e){s[e.player]=true;}); return Object.keys(s).sort(); }
+function allPlayerNames(){
+  // union of roster (Players tab) + anyone who has an entry but isn't in the roster yet
+  var s = {};
+  state.players.forEach(function(p){ s[p.name]=true; });
+  state.entries.forEach(function(e){ s[e.player]=true; });
+  return Object.keys(s).sort();
+}
+function findPlayer(name){ return state.players.find(function(p){ return p.name === name; }); }
+
+function computePlayerStats(){
+  var byName = {};
+  sortedEntries().forEach(function(e){
+    if (!byName[e.player]) byName[e.player] = { name:e.player, sessions:0, taken:0, returned:0, net:0, mults:[], wins:0, entries:[] };
+    var p = byName[e.player];
+    if (e.ret === null) return; // unresolved, skip from stats
+    p.sessions++; p.taken += e.buyIn; p.returned += e.ret; p.net += (e.ret - e.buyIn);
+    if (e.buyIn > 0) p.mults.push(e.ret / e.buyIn);
+    if (e.ret > e.buyIn) p.wins++;
+    p.entries.push(e);
+  });
+  return Object.keys(byName).map(function(k){
+    var p = byName[k];
+    p.avgMult = p.mults.length ? p.mults.reduce(function(a,b){return a+b;},0)/p.mults.length : null;
+    p.winRate = p.sessions ? p.wins/p.sessions : 0;
+    return p;
+  }).sort(function(a,b){ return b.net - a.net; });
+}
+function stddev(arr){
+  if (arr.length<2) return 0;
+  var m = arr.reduce(function(a,b){return a+b;},0)/arr.length;
+  return Math.sqrt(arr.reduce(function(a,b){return a+Math.pow(b-m,2);},0)/(arr.length-1));
+}
+
+// ---------- entry form ----------
+var fSession=document.getElementById("fSession"), fDate=document.getElementById("fDate"),
+    fBuyIn=document.getElementById("fBuyIn"), fPlayerSelect=document.getElementById("fPlayerSelect"), fPlayerNew=document.getElementById("fPlayerNew"),
+    fReturn=document.getElementById("fReturn"), fPhone=document.getElementById("fPhone"),
+    formMsg=document.getElementById("formMsg"), nameList=document.getElementById("nameList");
+
+fDate.value = todayISO();
+document.getElementById("buyMinus").addEventListener("click", function(){ fBuyIn.value = Math.max(0, (parseInt(fBuyIn.value)||0) - 500); });
+document.getElementById("buyPlus").addEventListener("click", function(){ fBuyIn.value = (parseInt(fBuyIn.value)||0) + 500; });
+
+// A session's date is pre-filled from its existing entries as a convenience
+// default — editable, not enforced, so odd edge cases never block logging.
+function existingSessionDate(sessionNo){
+  var e = state.entries.find(function(x){ return Number(x.session) === Number(sessionNo); });
+  return e ? e.date : null;
+}
+function syncDateToSession(){
+  var session = parseInt(fSession.value) || null;
+  var existingDate = session ? existingSessionDate(session) : null;
+  fDate.readOnly = false; fDate.title = "";
+  if (existingDate){
+    fDate.value = existingDate;
+  } else if (!fDate.value){
+    fDate.value = todayISO();
+  }
+}
+fSession.addEventListener("input", syncDateToSession);
+fSession.addEventListener("change", syncDateToSession);
+
+var resumeSelect = document.getElementById("resumeSession");
+function refreshResumeSelect(){
+  var keep = resumeSelect.value;
+  var nums = sessionNumbers(); // newest first
+  resumeSelect.innerHTML = '<option value="">Pick a session</option>' + nums.map(function(n){
+    var d = existingSessionDate(n);
+    return '<option value="'+n+'">Session '+n+(d?' ('+fmtDate(d)+')':'')+'</option>';
+  }).join("");
+  if (nums.indexOf(Number(keep)) > -1) resumeSelect.value = keep;
+}
+resumeSelect.addEventListener("change", function(){
+  if (!resumeSelect.value) return;
+  fSession.value = resumeSelect.value;
+  syncDateToSession();
+  document.getElementById("sessionHint").textContent = "Resumed Session " + fSession.value + " — date defaulted to " + fmtDate(fDate.value) + " (editable). Log each player below.";
+  document.getElementById("sessionHint").className = "msg ok";
+});
+
+document.getElementById("btnNewSession").addEventListener("click", function(){
+  var loggedCount = sessionNumbers().length; // distinct sessions already logged
+  fSession.value = loggedCount + 1; fDate.value = todayISO();
+  syncDateToSession();
+  resumeSelect.value = "";
+  document.getElementById("sessionHint").textContent = "Session " + fSession.value + " started — you can edit the session # above if resuming an earlier one. Log each player below, then start the next session when done.";
+  document.getElementById("sessionHint").className = "msg ok";
+});
+fPlayerSelect.addEventListener("change", function(){
+  if (fPlayerSelect.value === "__new__"){ fPlayerNew.style.display = ""; fPlayerNew.focus(); }
+  else { fPlayerNew.style.display = "none"; fPlayerNew.value = ""; }
+});
+function currentPlayerName(){
+  return fPlayerSelect.value === "__new__" ? fPlayerNew.value.trim() : fPlayerSelect.value;
+}
+
+function showMsg(text, isErr){
+  formMsg.textContent = text; formMsg.className = "msg " + (isErr?"err":"ok");
+  if (!isErr) setTimeout(function(){ if (formMsg.textContent===text) formMsg.textContent=""; }, 2500);
+}
+
+document.getElementById("btnAdd").addEventListener("click", async function(){
+  var name = currentPlayerName();
+  var buyIn = parseFloat(fBuyIn.value);
+  var retRaw = fReturn.value.trim();
+  var ret = retRaw === "" ? null : parseFloat(retRaw);
+  var session = fSession.value ? parseInt(fSession.value) : null;
+  var date = fDate.value || todayISO();
+  var phone = fPhone.value.trim();
+
+  if (!session){ showMsg('Click "Start new session" above before logging entries.', true); return; }
+  if (!name){ showMsg("Select or add a player name.", true); (fPlayerSelect.value==="__new__"?fPlayerNew:fPlayerSelect).focus(); return; }
+  if (isNaN(buyIn) || buyIn < 0){ showMsg("Buy-in must be ≥ 0.", true); fBuyIn.focus(); return; }
+  if (ret === null){ showMsg("Enter the return — log this player once the game has ended.", true); fReturn.focus(); return; }
+  if (isNaN(ret) || ret < 0){ showMsg("Return must be ≥ 0.", true); fReturn.focus(); return; }
+
+  var btn = document.getElementById("btnAdd"); btn.disabled = true;
+  try {
+    await apiPost("addEntry", { session: session, date: date, player: name, buyIn: buyIn, ret: ret });
+    if (phone){ await apiPost("setPhone", { name: name, phone: phone }); }
+    await loadAll();
+    fSession.value = session; fDate.value = date;
+    fReturn.value=""; fPhone.value=""; fBuyIn.value = 500;
+    fPlayerSelect.value = ""; fPlayerNew.style.display = "none"; fPlayerNew.value = "";
+    fPlayerSelect.focus();
+    showMsg("Logged " + name + " for session " + session + ".", false);
+  } catch(e){ showMsg("Couldn't save — check your connection and try again.", true); }
+  btn.disabled = false;
+});
+
+// ---------- log table ----------
+var logBody=document.getElementById("logBody"), logEmpty=document.getElementById("logEmpty");
+function renderLog(){
+  refreshNameList();
+  refreshResumeSelect();
+  var entries = sortedEntries().reverse();
+  logBody.innerHTML = "";
+  logEmpty.style.display = entries.length ? "none" : "block";
+  entries.forEach(function(e){
+    var net = e.ret===null ? null : (e.ret - e.buyIn);
+    var mult = (e.ret===null || e.buyIn<=0) ? null : (e.ret/e.buyIn);
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td>'+e.session+'</td><td>'+fmtDate(e.date)+'</td><td>'+escapeHtml(e.player)+'</td>'+
+      '<td class="num-cell">'+fmt(e.buyIn)+'</td>'+
+      '<td class="num-cell">'+(e.ret===null?'<span class="badge">playing</span>':fmt(e.ret))+'</td>'+
+      '<td class="num-cell '+(net===null?"":(net>=0?"pos":"neg"))+'">'+(net===null?"—":fmtSigned(net))+'</td>'+
+      '<td class="num-cell">'+(mult===null?"—":fmt(mult)+"×")+'</td>'+
+      '<td class="row-actions"><button data-edit="'+e.rowId+'" title="Edit">✎</button><button class="del" data-del="'+e.rowId+'" title="Delete">✕</button></td>';
+    logBody.appendChild(tr);
+  });
+}
+function refreshNameList(){
+  nameList.innerHTML = "";
+  var names = allPlayerNames();
+  names.forEach(function(n){ var o=document.createElement("option"); o.value=n; nameList.appendChild(o); });
+  var keep = fPlayerSelect.value;
+  fPlayerSelect.innerHTML = '<option value="">Select player…</option>' +
+    names.map(function(n){ return '<option value="'+n.replace(/"/g,"&quot;")+'">'+n+'</option>'; }).join("") +
+    '<option value="__new__">+ Add new player</option>';
+  if (names.indexOf(keep) > -1 || keep === "__new__") fPlayerSelect.value = keep;
+}
+
+logBody.addEventListener("click", async function(ev){
+  var delId = ev.target.getAttribute("data-del");
+  var editId = ev.target.getAttribute("data-edit");
+  if (delId){
+    if (!confirm("Delete this entry?")) return;
+    try { await apiPost("deleteEntry", { rowId: parseInt(delId) }); await loadAll(); }
+    catch(e){ showMsg("Couldn't delete — try again.", true); }
+    return;
+  }
+  if (editId){ startEdit(parseInt(editId)); }
+});
+
+function startEdit(rowId){
+  var e = state.entries.find(function(x){ return x.rowId === rowId; });
+  if (!e) return;
+  var tr = [].find.call(logBody.querySelectorAll("tr"), function(row){
+    return row.querySelector('[data-edit="'+rowId+'"]');
+  });
+  if (!tr) return;
+  tr.innerHTML =
+    '<td><input type="number" value="'+e.session+'" style="width:52px;" id="edSession"></td>'+
+    '<td><input type="date" value="'+e.date+'" style="width:130px;" id="edDate"></td>'+
+    '<td><input type="text" value="'+escapeHtml(e.player)+'" style="width:110px;" id="edPlayer"></td>'+
+    '<td><input type="number" step="500" value="'+e.buyIn+'" style="width:80px;" id="edBuyIn"></td>'+
+    '<td><input type="number" step="any" value="'+(e.ret===null?'':e.ret)+'" placeholder="blank" style="width:80px;" id="edReturn"></td>'+
+    '<td colspan="2"><button class="ghost small" id="edSave">Save</button> <button class="ghost small" id="edCancel">Cancel</button></td>';
+  tr.querySelector("#edCancel").addEventListener("click", renderLog);
+  tr.querySelector("#edSave").addEventListener("click", async function(){
+    var payload = {
+      rowId: rowId,
+      session: parseInt(tr.querySelector("#edSession").value) || e.session,
+      date: tr.querySelector("#edDate").value || e.date,
+      player: tr.querySelector("#edPlayer").value.trim() || e.player,
+      buyIn: parseFloat(tr.querySelector("#edBuyIn").value),
+      ret: tr.querySelector("#edReturn").value.trim()===""? null : parseFloat(tr.querySelector("#edReturn").value)
+    };
+    try { await apiPost("updateEntry", payload); await loadAll(); }
+    catch(err){ showMsg("Couldn't save the edit — try again.", true); }
+  });
+}
+
+// ---------- charts (SVG, no dependencies) ----------
+// Wraps buildLineChart with a clickable legend: clicking a name makes only
+// that player's line triple-thick on the SAME chart — scale, axes, and every
+// other line stay exactly as they were. Click the same name again to unhighlight.
+function renderInteractiveChart(chartEl, legendEl, series, opts){
+  var highlighted = null;
+  function draw(){
+    buildLineChart(chartEl, series, Object.assign({}, opts, { highlight: highlighted }));
+    legendEl.innerHTML = "";
+    series.forEach(function(s){
+      var span = document.createElement("span");
+      span.style.cursor = "pointer";
+      span.style.fontWeight = (highlighted===s.name) ? "700" : "400";
+      span.title = "Click to highlight " + s.name;
+      span.innerHTML = '<i class="swatch" style="background:'+s.color+'"></i>'+escapeHtml(s.name);
+      span.addEventListener("click", function(){ highlighted = (highlighted===s.name) ? null : s.name; draw(); });
+      legendEl.appendChild(span);
+    });
+  }
+  draw();
+}
+function buildLineChart(container, series, opts){
+  // Points are keyed by session number (unique per game) so two sessions on
+  // the same calendar date still plot as two distinct points. Date is carried
+  // per-point only for the tooltip — a manual reference, never the grouping key.
+  opts = opts || {};
+  var signed = opts.signed !== false;
+  container.innerHTML = "";
+  var allX = [];
+  series.forEach(function(s){ s.points.forEach(function(p){ allX.push(p.x); }); });
+  allX = Array.from(new Set(allX)).sort(function(a,b){ return a-b; });
+  if (allX.length===0){ container.innerHTML='<div class="empty">Not enough data yet.</div>'; return; }
+  var W=700,H=640,padL=52,padR=16,padT=20,padB=34;
+  var allY=[]; series.forEach(function(s){ s.points.forEach(function(p){ allY.push(p.y); }); });
+  var yMin=Math.min(0,Math.min.apply(null,allY)), yMax=Math.max(0,Math.max.apply(null,allY));
+  if (yMin===yMax){ yMin-=1; yMax+=1; }
+  var yPad=(yMax-yMin)*0.08; yMin-=yPad; yMax+=yPad;
+  function xPos(x){ var idx=allX.indexOf(x); return allX.length===1? padL+(W-padL-padR)/2 : padL+(idx/(allX.length-1))*(W-padL-padR); }
+  function yPos(v){ return padT + (1-(v-yMin)/(yMax-yMin))*(H-padT-padB); }
+  var svgns="http://www.w3.org/2000/svg";
+  var svg=document.createElementNS(svgns,"svg");
+  svg.setAttribute("viewBox","0 0 "+W+" "+H); svg.setAttribute("width","100%"); svg.style.display="block"; svg.style.overflow="visible"; svg.style.maxHeight="695px";
+  var zl=document.createElementNS(svgns,"line");
+  zl.setAttribute("x1",padL); zl.setAttribute("x2",W-padR); zl.setAttribute("y1",yPos(0)); zl.setAttribute("y2",yPos(0));
+  zl.setAttribute("stroke",css("--line")); zl.setAttribute("stroke-dasharray","3,3"); svg.appendChild(zl);
+  [yMin, yMin+(yMax-yMin)*0.25, (yMin+yMax)/2, yMin+(yMax-yMin)*0.75, yMax].forEach(function(v){
+    var t=document.createElementNS(svgns,"text"); t.setAttribute("x",6); t.setAttribute("y",yPos(v)+4);
+    t.setAttribute("font-size","13"); t.setAttribute("fill",css("--ink-faint")); t.textContent=fmt(v); svg.appendChild(t);
+  });
+  [allX[0], allX[allX.length-1]].forEach(function(x,i){
+    var t=document.createElementNS(svgns,"text"); t.setAttribute("x", i===0?padL:W-padR); t.setAttribute("y",H-8);
+    t.setAttribute("font-size","13"); t.setAttribute("fill",css("--ink-faint")); t.setAttribute("text-anchor",i===0?"start":"end");
+    t.textContent="S"+x; svg.appendChild(t);
+  });
+  series.forEach(function(s){
+    if (!s.points.length) return;
+    var isHighlighted = opts.highlight === s.name;
+    var baseWidth = 2.2;
+    var d = ""; s.points.forEach(function(p,i){ d += (i===0?"M":"L")+xPos(p.x).toFixed(1)+","+yPos(p.y).toFixed(1)+" "; });
+    var path=document.createElementNS(svgns,"path"); path.setAttribute("d",d.trim()); path.setAttribute("fill","none");
+    path.setAttribute("stroke",s.color); path.setAttribute("stroke-width", isHighlighted ? (baseWidth*3) : baseWidth);
+    path.setAttribute("stroke-linejoin","round"); path.setAttribute("stroke-linecap","round");
+    if (isHighlighted) container._highlightPath = path; else svg.appendChild(path);
+    s.points.forEach(function(p){
+      var c=document.createElementNS(svgns,"circle"); c.setAttribute("cx",xPos(p.x)); c.setAttribute("cy",yPos(p.y)); c.setAttribute("r", isHighlighted ? "5" : "3.5");
+      c.setAttribute("fill",s.color); c.setAttribute("stroke","#fff"); c.setAttribute("stroke-width","1.5");
+      var title=document.createElementNS(svgns,"title");
+      var valTxt = signed ? fmtSigned(p.y) : fmt(p.y);
+      title.textContent=s.name+" · Session "+p.x+(p.date?" ("+fmtDate(p.date)+")":"")+" · "+valTxt;
+      c.appendChild(title);
+      svg.appendChild(c);
+    });
+  });
+  // Draw the highlighted line last so it renders on top of the others.
+  if (container._highlightPath){ svg.appendChild(container._highlightPath); delete container._highlightPath; }
+  container.appendChild(svg);
+}
+function buildBarChart(container, items){
+  container.innerHTML="";
+  if (!items.length){ container.innerHTML='<div class="empty">No data yet.</div>'; return; }
+  var maxAbs=Math.max.apply(null, items.map(function(i){return Math.abs(i.value);})) || 1;
+  var rowH=44, W=700, padL=120, padR=70, H=rowH*items.length+10;
+  var svgns="http://www.w3.org/2000/svg";
+  var svg=document.createElementNS(svgns,"svg"); svg.setAttribute("viewBox","0 0 "+W+" "+H); svg.setAttribute("width","100%"); svg.style.display="block";
+  var midX=padL+(W-padL-padR)/2;
+  items.forEach(function(item,i){
+    var y=i*rowH+6; var barMax=(W-padL-padR)/2-8; var w=(Math.abs(item.value)/maxAbs)*barMax;
+    var x=item.value>=0? midX : midX-w;
+    var label=document.createElementNS(svgns,"text"); label.setAttribute("x",padL-10); label.setAttribute("y",y+rowH/2+4);
+    label.setAttribute("text-anchor","end"); label.setAttribute("font-size","12.5"); label.setAttribute("fill",css("--ink"));
+    label.textContent=item.label; svg.appendChild(label);
+    var rect=document.createElementNS(svgns,"rect"); rect.setAttribute("x",x); rect.setAttribute("y",y+5);
+    rect.setAttribute("width",Math.max(w,1)); rect.setAttribute("height",rowH-14); rect.setAttribute("rx",3);
+    rect.setAttribute("fill", item.value>=0? css("--profit") : css("--loss")); svg.appendChild(rect);
+    var val=document.createElementNS(svgns,"text"); val.setAttribute("y",y+rowH/2+4); val.setAttribute("font-size","12"); val.setAttribute("fill",css("--ink-dim"));
+    if (item.value>=0){ val.setAttribute("x",x+w+8); val.setAttribute("text-anchor","start"); } else { val.setAttribute("x",x-8); val.setAttribute("text-anchor","end"); }
+    val.textContent=fmtSigned(item.value); svg.appendChild(val);
+  });
+  var mid=document.createElementNS(svgns,"line"); mid.setAttribute("x1",midX); mid.setAttribute("x2",midX); mid.setAttribute("y1",0); mid.setAttribute("y2",H);
+  mid.setAttribute("stroke",css("--line")); svg.appendChild(mid);
+  container.appendChild(svg);
+}
+
+// ---------- tabs ----------
+var tabs=document.querySelectorAll("nav.tabs button");
+tabs.forEach(function(btn){
+  btn.addEventListener("click", function(){
+    tabs.forEach(function(b){b.classList.remove("active");}); btn.classList.add("active");
+    ["log","players","trends","daily","leaderboard","settle","analytics"].forEach(function(name){
+      document.getElementById("tab-"+name).style.display = (name===btn.dataset.tab) ? "" : "none";
+    });
+    if (btn.dataset.tab==="players") renderPlayers();
+    if (btn.dataset.tab==="trends") renderTrends();
+    if (btn.dataset.tab==="daily") renderDaily();
+    if (btn.dataset.tab==="leaderboard") renderLeaderboard();
+    if (btn.dataset.tab==="settle") renderSettleOptions();
+    if (btn.dataset.tab==="analytics") renderAnalyticsActive();
+  });
+});
+
+var subtabs = document.querySelectorAll("nav.subtabs button");
+subtabs.forEach(function(btn){
+  btn.addEventListener("click", function(){
+    subtabs.forEach(function(b){ b.classList.remove("active"); }); btn.classList.add("active");
+    ["cum","mult","buyin"].forEach(function(name){
+      document.getElementById("trendPanel-"+name).style.display = (name===btn.dataset.subtab) ? "" : "none";
+    });
+  });
+});
+
+// Analytics sub-tabs — entirely separate handler/selector from the Trends
+// sub-tabs above, so nothing about the existing Trends behavior is touched.
+var analyticsSubtabNames = ["stats","rivalry","nemesis","kryptonite","risk","check"];
+var analyticsSubtabs = document.querySelectorAll("#analyticsSubtabs button");
+analyticsSubtabs.forEach(function(btn){
+  btn.addEventListener("click", function(){
+    analyticsSubtabs.forEach(function(b){ b.classList.remove("active"); }); btn.classList.add("active");
+    analyticsSubtabNames.forEach(function(name){
+      document.getElementById("analyticsPanel-"+name).style.display = (name===btn.dataset.asub) ? "" : "none";
+    });
+    renderAnalyticsActive();
+  });
+});
+function renderAnalyticsActive(){
+  var active = document.querySelector("#analyticsSubtabs button.active");
+  var which = active ? active.dataset.asub : "stats";
+  if (which!=="check") renderAnalyticsFilterNote();
+  if (which==="stats") renderStats();
+  if (which==="rivalry") renderRivalry();
+  if (which==="nemesis") renderNemesis();
+  if (which==="kryptonite") renderKryptonite();
+  if (which==="risk") renderRisk();
+  if (which==="check") renderCheck();
+}
+
+// ---------- players tab ----------
+var pName=document.getElementById("pName"), pPhone=document.getElementById("pPhone"), playerMsg=document.getElementById("playerMsg");
+document.getElementById("btnSavePlayer").addEventListener("click", async function(){
+  var name = pName.value.trim(), phone = pPhone.value.trim();
+  if (!name){ playerMsg.textContent="Enter a name."; playerMsg.className="msg err"; pName.focus(); return; }
+  try {
+    await apiPost("setPhone", { name: name, phone: phone });
+    await loadAll();
+    pName.value=""; pPhone.value="";
+    playerMsg.textContent = "Saved " + name + "."; playerMsg.className = "msg ok";
+    setTimeout(function(){ playerMsg.textContent=""; }, 2000);
+  } catch(e){ playerMsg.textContent="Couldn't save: " + e.message; playerMsg.className="msg err"; }
+});
+function renderPlayers(){
+  var body = document.getElementById("rosterBody");
+  document.getElementById("rosterEmpty").style.display = state.players.length ? "none" : "block";
+  body.innerHTML = "";
+  state.players.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(p){
+    var tr = document.createElement("tr");
+    tr.innerHTML = '<td>'+escapeHtml(p.name)+'</td>'+
+      '<td><input class="phone-input" value="'+escapeHtml(String(p.phone||""))+'" data-rosterphone="'+escapeHtml(p.name)+'" placeholder="add phone"></td>'+
+      '<td><button class="ghost small" data-rostersave="'+escapeHtml(p.name)+'">Save</button></td>';
+    body.appendChild(tr);
+  });
+  body.querySelectorAll("[data-rostersave]").forEach(function(btn){
+    btn.addEventListener("click", async function(){
+      var name = btn.getAttribute("data-rostersave");
+      var input = body.querySelector('[data-rosterphone="'+name+'"]');
+      try { await apiPost("setPhone", { name: name, phone: input.value.trim() }); await loadAll(); renderPlayers(); }
+      catch(e){ /* silent */ }
+    });
+  });
+}
+
+// ---------- trends ----------
+function renderTrends(){
+  var names=uniqueNames(); var players=computePlayerStats(); var byName={}; players.forEach(function(p){byName[p.name]=p;});
+  var cumSeries = names.filter(function(n){return byName[n];}).map(function(n){
+    var running=0;
+    var pts = byName[n].entries.map(function(e){ running += (e.ret-e.buyIn); return {x:Number(e.session),y:running,date:e.date}; });
+    return { name:n, color:playerColor(n,names), points:pts };
+  });
+  renderInteractiveChart(document.getElementById("cumChartWrap"), document.getElementById("cumLegend"), cumSeries);
+
+  var multSeries = names.filter(function(n){return byName[n];}).map(function(n){
+    var pts = byName[n].entries.filter(function(e){return e.buyIn>0;}).map(function(e){ return {x:Number(e.session),y:e.ret/e.buyIn,date:e.date}; });
+    return { name:n, color:playerColor(n,names), points:pts };
+  });
+  renderInteractiveChart(document.getElementById("multChartWrap"), document.getElementById("multLegend"), multSeries);
+
+  // Buy-in per session, by player — uses every entry regardless of whether the
+  // session has resolved yet, since buy-in is known the moment someone sits down.
+  var buyInSeries = names.map(function(n){
+    var pts = sortedEntries().filter(function(e){ return e.player===n; }).map(function(e){
+      return { x:Number(e.session), y:e.buyIn, date:e.date };
+    });
+    return { name:n, color:playerColor(n,names), points:pts };
+  });
+  renderInteractiveChart(document.getElementById("buyInChartWrap"), document.getElementById("buyInLegend"), buyInSeries, { signed:false });
+
+  var insightEl=document.getElementById("leverageInsight");
+  var withMult = players.filter(function(p){return p.avgMult!==null;});
+  if (!withMult.length){ insightEl.textContent="Log a few resolved sessions to see leverage patterns."; }
+  else {
+    var highest = withMult.slice().sort(function(a,b){return b.avgMult-a.avgMult;})[0];
+    var mostVolatile = withMult.slice().sort(function(a,b){return stddev(b.mults)-stddev(a.mults);})[0];
+    var lines=[];
+    lines.push("<b>"+escapeHtml(highest.name)+"</b> has the highest average return multiplier at <b>"+fmt(highest.avgMult)+"×</b> — on a typical session they leave with "+fmt(highest.avgMult)+"× what they bought in for.");
+    if (withMult.length>1 && mostVolatile.mults.length>1){
+      lines.push("<b>"+escapeHtml(mostVolatile.name)+"</b> swings the most session-to-session (std. dev. "+fmt(stddev(mostVolatile.mults))+" on multiplier) — high variance cuts both ways.");
+    }
+    insightEl.innerHTML = lines.join(" ");
+  }
+}
+
+// ---------- daily ----------
+function computeDailyTotals(){
+  var bySession = {};
+  sortedEntries().forEach(function(e){
+    if (e.ret === null) return;
+    if (!bySession[Number(e.session)]) bySession[Number(e.session)] = { total:0, date:e.date };
+    bySession[Number(e.session)].total += e.buyIn;
+  });
+  return Object.keys(bySession).map(Number).sort(function(a,b){return a-b;}).map(function(s){
+    return { label: "S"+s+" ("+fmtDate(bySession[s].date)+")", value: bySession[s].total };
+  });
+}
+function computePlayerDaily(name){
+  var bySession = {};
+  sortedEntries().filter(function(e){ return e.player===name && e.ret!==null; }).forEach(function(e){
+    bySession[Number(e.session)] = { value: e.ret - e.buyIn, date: e.date };
+  });
+  return Object.keys(bySession).map(Number).sort(function(a,b){return a-b;}).map(function(s){
+    return { label: "S"+s+" ("+fmtDate(bySession[s].date)+")", value: bySession[s].value };
+  });
+}
+function computeInsights(){
+  var players = computePlayerStats();
+  var lines = [];
+  if (!players.length) return lines;
+
+  var mostActive = players.slice().sort(function(a,b){return b.sessions-a.sessions;})[0];
+  lines.push("<b>"+escapeHtml(mostActive.name)+"</b> has played the most sessions (<b>"+mostActive.sessions+"</b>).");
+
+  var allResults = [];
+  players.forEach(function(p){ p.entries.forEach(function(e){ allResults.push({ name:p.name, net:e.ret-e.buyIn, session:e.session, date:e.date }); }); });
+  if (allResults.length){
+    var biggestWin = allResults.slice().sort(function(a,b){return b.net-a.net;})[0];
+    var biggestLoss = allResults.slice().sort(function(a,b){return a.net-b.net;})[0];
+    lines.push("Biggest single-session win: <b>"+escapeHtml(biggestWin.name)+"</b> "+fmtSigned(biggestWin.net)+" (Session "+biggestWin.session+", "+fmtDate(biggestWin.date)+").");
+    lines.push("Biggest single-session loss: <b>"+escapeHtml(biggestLoss.name)+"</b> "+fmtSigned(biggestLoss.net)+" (Session "+biggestLoss.session+", "+fmtDate(biggestLoss.date)+").");
+  }
+
+  var withVar = players.filter(function(p){return p.entries.length>1;}).map(function(p){
+    var nets = p.entries.map(function(e){return e.ret-e.buyIn;});
+    return { name:p.name, sd: stddev(nets) };
+  });
+  if (withVar.length){
+    var mostConsistent = withVar.slice().sort(function(a,b){return a.sd-b.sd;})[0];
+    var mostVolatile = withVar.slice().sort(function(a,b){return b.sd-a.sd;})[0];
+    lines.push("Most consistent: <b>"+escapeHtml(mostConsistent.name)+"</b> (net std. dev. "+fmt(mostConsistent.sd)+").");
+    if (mostVolatile.name !== mostConsistent.name){
+      lines.push("Most volatile: <b>"+escapeHtml(mostVolatile.name)+"</b> (net std. dev. "+fmt(mostVolatile.sd)+").");
+    }
+  }
+
+  var streaks = players.map(function(p){
+    var sorted = p.entries.slice().sort(function(a,b){return a.date.localeCompare(b.date) || a.session-b.session;});
+    var curType=null, curLen=0;
+    sorted.forEach(function(e){
+      var win = (e.ret-e.buyIn) > 0;
+      if (curType===win){ curLen++; } else { curType=win; curLen=1; }
+    });
+    return { name:p.name, type:curType, len:curLen };
+  });
+  var winStreaks = streaks.filter(function(s){return s.type===true;}).sort(function(a,b){return b.len-a.len;});
+  var lossStreaks = streaks.filter(function(s){return s.type===false;}).sort(function(a,b){return b.len-a.len;});
+  if (winStreaks.length && winStreaks[0].len>1) lines.push("Current win streak: <b>"+escapeHtml(winStreaks[0].name)+"</b> ("+winStreaks[0].len+" sessions running).");
+  if (lossStreaks.length && lossStreaks[0].len>1) lines.push("Current losing streak: <b>"+escapeHtml(lossStreaks[0].name)+"</b> ("+lossStreaks[0].len+" sessions running).");
+
+  var withRate = players.filter(function(p){return p.sessions>=3;}).slice().sort(function(a,b){return b.winRate-a.winRate;});
+  if (withRate.length) lines.push("Best win rate (3+ sessions): <b>"+escapeHtml(withRate[0].name)+"</b> ("+Math.round(withRate[0].winRate*100)+"%).");
+
+  var byDateCount={};
+  sortedEntries().forEach(function(e){ byDateCount[e.date]=(byDateCount[e.date]||0)+1; });
+  var dateKeys = Object.keys(byDateCount);
+  if (dateKeys.length){
+    var busiest = dateKeys.sort(function(a,b){return byDateCount[b]-byDateCount[a];})[0];
+    lines.push("Busiest date: <b>"+fmtDate(busiest)+"</b> ("+byDateCount[busiest]+" entries logged).");
+  }
+  return lines;
+}
+function renderDaily(){
+  buildBarChart(document.getElementById("dailyActivityWrap"), computeDailyTotals());
+
+  var names = uniqueNames();
+  var sel = document.getElementById("dailyPlayerSelect");
+  var keep = sel.value;
+  sel.innerHTML = names.map(function(n){ return '<option value="'+n.replace(/"/g,"&quot;")+'">'+n+'</option>'; }).join("");
+  if (names.indexOf(keep) > -1) sel.value = keep; else if (names.length) sel.value = names[0];
+  sel.onchange = function(){ buildBarChart(document.getElementById("dailyPlayerWrap"), computePlayerDaily(sel.value)); };
+  if (sel.value) buildBarChart(document.getElementById("dailyPlayerWrap"), computePlayerDaily(sel.value));
+  else document.getElementById("dailyPlayerWrap").innerHTML = '<div class="empty">No players yet.</div>';
+
+  var insights = computeInsights();
+  document.getElementById("insightsList").innerHTML = insights.length
+    ? insights.map(function(l){ return '<div class="insight" style="margin-top:8px;">'+l+'</div>'; }).join("")
+    : '<div class="empty">Log a few sessions to see insights.</div>';
+}
+
+// ---------- leaderboard ----------
+function renderLeaderboard(){
+  var players = computePlayerStats();
+  document.getElementById("lbEmpty").style.display = players.length? "none":"block";
+  var body = document.getElementById("playerBody"); body.innerHTML="";
+  players.forEach(function(p){
+    var tr=document.createElement("tr");
+    tr.innerHTML = '<td>'+escapeHtml(p.name)+'</td><td class="num-cell">'+p.sessions+'</td>'+
+      '<td class="num-cell">'+fmt(p.taken)+'</td><td class="num-cell">'+fmt(p.returned)+'</td>'+
+      '<td class="num-cell '+(p.net>=0?"pos":"neg")+'">'+fmtSigned(p.net)+'</td>'+
+      '<td class="num-cell">'+(p.avgMult===null?"—":fmt(p.avgMult)+"×")+'</td>'+
+      '<td class="num-cell">'+Math.round(p.winRate*100)+'%</td>';
+    body.appendChild(tr);
+  });
+  buildBarChart(document.getElementById("lbChartWrap"), players.map(function(p){return {label:p.name,value:p.net};}));
+  var totalTaken=players.reduce(function(a,p){return a+p.taken;},0), totalReturned=players.reduce(function(a,p){return a+p.returned;},0);
+  var dates=state.entries.map(function(e){return e.date;}).sort(); var nightsSet=new Set(dates);
+  var unresolved = state.entries.filter(function(e){return e.ret===null;}).length;
+  document.getElementById("summaryStats").innerHTML = [
+    {num: state.entries.length, lbl:"Entries logged"},
+    {num: nightsSet.size, lbl:"Distinct dates"},
+    {num: players.length, lbl:"Players"},
+    {num: unresolved, lbl:"Still playing (unresolved)"},
+    {num: fmtSigned(totalReturned-totalTaken), lbl:"Table balance (resolved)", cls: totalReturned-totalTaken===0?"":"neg"}
+  ].map(function(s){ return '<div class="stat"><div class="num '+(s.cls||"")+'">'+s.num+'</div><div class="lbl">'+s.lbl+'</div></div>'; }).join("");
+  document.getElementById("rangeTag").textContent = dates.length? (fmtDate(dates[0])+" → "+fmtDate(dates[dates.length-1])) : "";
+}
+
+document.getElementById("btnSaveFactor").addEventListener("click", async function(){
+  var val = parseFloat(document.getElementById("convFactor").value);
+  var msgEl = document.getElementById("factorMsg");
+  if (isNaN(val) || val <= 0){ msgEl.textContent = "Enter a factor > 0."; return; }
+  try {
+    await apiPost("setSetting", { key: "conversionFactor", value: val });
+    await loadAll();
+    document.getElementById("convFactor").value = val;
+    msgEl.textContent = "Saved."; setTimeout(function(){ msgEl.textContent=""; }, 2000);
+    renderSettleOptionsKeepingSelection(Number(document.getElementById("settleSession").value));
+  } catch(e){ msgEl.textContent = "Couldn't save."; }
+});
+
+// ---------- optimal settlement (true minimum transaction count) ----------
+// Greedy settlement: repeatedly match the current debtor with the current
+// creditor, transfer the smaller of the two amounts, drop whichever side
+// hits zero, and repeat until everyone is settled.
+function greedySettlement(nets){
+  var debtors = nets.filter(function(n){return n.net<-0.005;}).map(function(n){return {name:n.name, amt:-n.net};}).sort(function(a,b){return b.amt-a.amt;});
+  var creditors = nets.filter(function(n){return n.net>0.005;}).map(function(n){return {name:n.name, amt:n.net};}).sort(function(a,b){return b.amt-a.amt;});
+  var transfers=[]; var i=0, j=0;
+  while (i<debtors.length && j<creditors.length){
+    var d=debtors[i], c=creditors[j];
+    var amt = Math.min(d.amt, c.amt);
+    if (amt>0.005) transfers.push({from:d.name, to:c.name, amount:amt});
+    d.amt -= amt; c.amt -= amt;
+    if (d.amt<=0.005) i++;
+    if (c.amt<=0.005) j++;
+  }
+  return transfers;
+}
+
+// ---------- analytics: stats ----------
+function computeStreaks(entriesForPlayer){
+  var sorted = entriesForPlayer.slice().sort(function(a,b){ return Number(a.session)-Number(b.session); });
+  var curWin=0, curLoss=0, maxWin=0, maxLoss=0;
+  sorted.forEach(function(e){
+    var win = (e.ret-e.buyIn) > 0;
+    if (win){ curWin++; curLoss=0; } else { curLoss++; curWin=0; }
+    if (curWin>maxWin) maxWin=curWin;
+    if (curLoss>maxLoss) maxLoss=curLoss;
+  });
+  return { maxWin:maxWin, maxLoss:maxLoss };
+}
+function renderStats(){
+  var qualifying = qualifyingPlayerNames();
+  var players = computePlayerStats().filter(function(p){ return qualifying.indexOf(p.name)>-1; });
+  document.getElementById("statsEmpty").style.display = players.length ? "none" : "block";
+  var body = document.getElementById("statsBody"); body.innerHTML = "";
+  players.slice().sort(function(a,b){return b.net-a.net;}).forEach(function(p){
+    var nets = p.entries.map(function(e){return e.ret-e.buyIn;});
+    var roi = p.taken>0 ? (p.net/p.taken*100) : 0;
+    var sd = stddev(nets);
+    var best = nets.length ? Math.max.apply(null, nets) : 0;
+    var worst = nets.length ? Math.min.apply(null, nets) : 0;
+    var streaks = computeStreaks(p.entries);
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td>'+escapeHtml(p.name)+'</td>'+
+      '<td class="num-cell">'+p.sessions+'</td>'+
+      '<td class="num-cell">'+fmt(p.taken)+'</td>'+
+      '<td class="num-cell">'+fmt(p.returned)+'</td>'+
+      '<td class="num-cell '+(p.net>=0?"pos":"neg")+'">'+fmtSigned(p.net)+'</td>'+
+      '<td class="num-cell">'+Math.round(p.winRate*100)+'%</td>'+
+      '<td class="num-cell">'+fmtSigned(p.sessions?p.net/p.sessions:0)+'</td>'+
+      '<td class="num-cell '+(roi>=0?"pos":"neg")+'">'+fmt(roi)+'%</td>'+
+      '<td class="num-cell">'+fmt(sd)+'</td>'+
+      '<td class="num-cell pos">'+fmtSigned(best)+'</td>'+
+      '<td class="num-cell neg">'+fmtSigned(worst)+'</td>'+
+      '<td class="num-cell">'+streaks.maxWin+'</td>'+
+      '<td class="num-cell">'+streaks.maxLoss+'</td>';
+    body.appendChild(tr);
+  });
+}
+
+// ---------- analytics: filters ----------
+// A player only shows up in Analytics once they've played at least 20% of the
+// average number of sessions across everyone — keeps a single guest appearance
+// from skewing stats, matrices, and rankings built on tiny sample sizes.
+function qualifyingPlayerNames(){
+  var players = computePlayerStats();
+  if (!players.length) return [];
+  var avgSessions = players.reduce(function(a,p){return a+p.sessions;},0)/players.length;
+  var threshold = avgSessions * 0.20;
+  return players.filter(function(p){ return p.sessions >= threshold; }).map(function(p){ return p.name; });
+}
+function analyticsFilterInfo(){
+  var players = computePlayerStats();
+  var avgSessions = players.length ? players.reduce(function(a,p){return a+p.sessions;},0)/players.length : 0;
+  var threshold = avgSessions*0.20;
+  var qualifying = qualifyingPlayerNames();
+  var excluded = players.filter(function(p){ return qualifying.indexOf(p.name)===-1; }).map(function(p){return p.name+" ("+p.sessions+")";});
+  return { avgSessions:avgSessions, threshold:threshold, excluded:excluded };
+}
+function renderAnalyticsFilterNote(){
+  var el = document.getElementById("analyticsFilterNote");
+  if (!el) return;
+  var info = analyticsFilterInfo();
+  if (!info.excluded.length){ el.textContent = ""; return; }
+  el.innerHTML = "Filtered out (fewer than 20% of the average " + fmt(info.avgSessions) + " sessions/player, i.e. under " + fmt(info.threshold) + "): " + info.excluded.map(escapeHtml).join(", ") + ".";
+}
+
+// ---------- analytics: rivalry ----------
+// Shared by Rivalry and Nemesis — computed once per render call, not cached,
+// since it's cheap at this data scale and always reflects the latest entries.
+// Also tracks co-occurrence counts, used to gate pairwise relationships (Nemesis,
+// Kryptonite) so a single coincidental shared session can't produce a false pattern.
+function computeRivalryMatrix(){
+  var names = qualifyingPlayerNames();
+  var matrix = {}; var coOccur = {};
+  names.forEach(function(a){ matrix[a]={}; coOccur[a]={}; names.forEach(function(b){ matrix[a][b]=0; coOccur[a][b]=0; }); });
+  var sharedAny = false;
+  sessionNumbers().forEach(function(sNo){
+    var entries = state.entries.filter(function(e){ return Number(e.session)===sNo && e.ret!==null && names.indexOf(e.player)>-1; });
+    if (entries.length<2) return;
+    sharedAny = true;
+    entries.forEach(function(e1){ entries.forEach(function(e2){ if (e1.player!==e2.player) coOccur[e1.player][e2.player]++; }); });
+    var nets = entries.map(function(e){ return { name:e.player, net:e.ret-e.buyIn }; });
+    var transfers = greedySettlement(nets);
+    transfers.forEach(function(t){ matrix[t.from][t.to] += t.amount; });
+  });
+  return { names:names, matrix:matrix, coOccur:coOccur, sharedAny:sharedAny };
+}
+function renderRivalry(){
+  var rv = computeRivalryMatrix();
+  var names = rv.names, matrix = rv.matrix, sharedAny = rv.sharedAny;
+  var table = document.getElementById("rivalryTable");
+  document.getElementById("rivalryEmpty").style.display = sharedAny ? "none" : "block";
+  if (!sharedAny){ table.innerHTML=""; return; }
+  var maxAbs = 1;
+  names.forEach(function(a){ names.forEach(function(b){
+    if (a===b) return;
+    var net = matrix[a][b]-matrix[b][a];
+    if (Math.abs(net)>maxAbs) maxAbs=Math.abs(net);
+  }); });
+  var html = "<thead><tr><th></th>" + names.map(function(n){return "<th>"+escapeHtml(n)+"</th>";}).join("") + "</tr></thead><tbody>";
+  names.forEach(function(a){
+    html += "<tr><th style='text-align:left;'>"+escapeHtml(a)+"</th>";
+    names.forEach(function(b){
+      if (a===b){ html += '<td class="num-cell" style="background:var(--panel-alt);">—</td>'; return; }
+      var net = matrix[a][b]-matrix[b][a];
+      var intensity = Math.min(Math.abs(net)/maxAbs, 1);
+      var bg = net===0 ? "transparent" : (net>0 ? "rgba(21,138,92,"+(0.12+intensity*0.5)+")" : "rgba(194,59,59,"+(0.12+intensity*0.5)+")");
+      html += '<td class="num-cell" style="background:'+bg+';" title="'+escapeHtml(a)+' vs '+escapeHtml(b)+'">'+(net===0?"—":fmtSigned(net))+'</td>';
+    });
+    html += "</tr>";
+  });
+  html += "</tbody>";
+  table.innerHTML = html;
+}
+
+// ---------- analytics: nemesis ----------
+function renderNemesis(){
+  var rv = computeRivalryMatrix();
+  var names = rv.names, matrix = rv.matrix, coOccur = rv.coOccur;
+  var wrap = document.getElementById("nemesisResult");
+  document.getElementById("nemesisEmpty").style.display = rv.sharedAny ? "none" : "block";
+  if (!rv.sharedAny){ wrap.innerHTML=""; return; }
+  var statsByName = {}; computePlayerStats().forEach(function(p){ statsByName[p.name]=p; });
+  var cards = names.map(function(p){
+    var mySessions = statsByName[p] ? statsByName[p].sessions : 0;
+    var best = null, worst = null; // best = biggest nemesis (p paid them most), worst here means biggest target (they paid p most)
+    names.forEach(function(o){
+      if (o===p) return;
+      // Only count this pair if they've shared more than 5% of p's sessions —
+      // otherwise a single coincidental encounter could produce a false nemesis.
+      if (mySessions>0 && (coOccur[p][o]/mySessions) <= 0.05) return;
+      var net = matrix[p][o]-matrix[o][p]; // positive = p net-paid o
+      if (net>0 && (!best || net>best.net)) best = { name:o, net:net };
+      if (net<0 && (!worst || net<worst.net)) worst = { name:o, net:net };
+    });
+    return { player:p, nemesis:best, target:worst };
+  }).filter(function(c){ return c.nemesis || c.target; });
+  if (!cards.length){ wrap.innerHTML = '<div class="empty">No net money has changed hands between anyone yet.</div>'; return; }
+  wrap.innerHTML = cards.map(function(c){
+    var lines = [];
+    if (c.nemesis) lines.push('<div class="lbl">☠️ Nemesis: <b>'+escapeHtml(c.nemesis.name)+'</b> — taken <b class="neg">'+fmt(c.nemesis.net)+'</b> from '+escapeHtml(c.player)+' overall</div>');
+    if (c.target) lines.push('<div class="lbl">🎯 Favorite target: <b>'+escapeHtml(c.target.name)+'</b> — '+escapeHtml(c.player)+' has taken <b class="pos">'+fmt(Math.abs(c.target.net))+'</b> from them overall</div>');
+    return '<div class="stat" style="margin-bottom:10px;"><div class="num">'+escapeHtml(c.player)+'</div>'+lines.join("")+'</div>';
+  }).join("");
+}
+
+// ---------- analytics: kryptonite ----------
+function computeKryptonite(player){
+  var mySessions = {};
+  state.entries.filter(function(e){ return e.player===player && e.ret!==null; }).forEach(function(e){
+    mySessions[Number(e.session)] = e.ret - e.buyIn;
+  });
+  var totalMy = Object.keys(mySessions).length;
+  var qualifying = qualifyingPlayerNames();
+  var others = qualifying.filter(function(n){ return n!==player; });
+  return others.map(function(other){
+    var withVals=[], withoutVals=[];
+    Object.keys(mySessions).forEach(function(sNoStr){
+      var sNo = Number(sNoStr);
+      var present = state.entries.some(function(e){ return Number(e.session)===sNo && e.player===other && e.ret!==null; });
+      (present ? withVals : withoutVals).push(mySessions[sNo]);
+    });
+    if (!withVals.length || !withoutVals.length) return null;
+    // Gate on co-occurrence rate: a pair that's only shared 1 session out of 40
+    // shouldn't produce a "kryptonite" label off that single coincidence.
+    if (totalMy>0 && (withVals.length/totalMy) <= 0.05) return null;
+    var avgWith = withVals.reduce(function(a,b){return a+b;},0)/withVals.length;
+    var avgWithout = withoutVals.reduce(function(a,b){return a+b;},0)/withoutVals.length;
+    return { other:other, avgWith:avgWith, avgWithout:avgWithout, delta:avgWith-avgWithout, nWith:withVals.length, nWithout:withoutVals.length };
+  }).filter(function(r){ return r!==null; }).sort(function(a,b){ return b.delta-a.delta; });
+}
+function renderKryptonite(){
+  var sel = document.getElementById("kryptoPlayerSelect");
+  var names = qualifyingPlayerNames();
+  var keep = sel.value;
+  sel.innerHTML = names.map(function(n){ return '<option value="'+n.replace(/"/g,"&quot;")+'">'+n+'</option>'; }).join("");
+  if (names.indexOf(keep)>-1) sel.value = keep; else if (names.length) sel.value = names[0];
+  sel.onchange = drawKrypto;
+  drawKrypto();
+  function drawKrypto(){
+    var wrap = document.getElementById("kryptoResult");
+    if (!sel.value){ wrap.innerHTML = '<div class="empty">No players yet.</div>'; return; }
+    var results = computeKryptonite(sel.value);
+    if (!results.length){ wrap.innerHTML = '<div class="empty">Not enough shared sessions with anyone yet.</div>'; return; }
+    var lucky = results.slice(0,3).filter(function(r){return r.delta>0;});
+    var krypto = results.slice(-3).reverse().filter(function(r){return r.delta<0;});
+    function rowsHtml(list){
+      return list.map(function(r){
+        var low = (r.nWith<3 || r.nWithout<3);
+        return '<div class="stat" style="margin-bottom:8px;"><div class="num '+(r.delta>=0?"pos":"neg")+'">'+fmtSigned(r.delta)+'</div>'+
+          '<div class="lbl">'+escapeHtml(r.other)+' — avg '+fmtSigned(r.avgWith)+' with them ('+r.nWith+' sessions) vs '+fmtSigned(r.avgWithout)+' without ('+r.nWithout+')'+(low?' · small sample':'')+'</div></div>';
+      }).join("");
+    }
+    wrap.innerHTML =
+      '<h2 style="font-size:14px;">🍀 Lucky charms</h2>' + (lucky.length ? rowsHtml(lucky) : '<div class="empty">None found.</div>') +
+      '<h2 style="font-size:14px;margin-top:16px;">☠️ Kryptonite</h2>' + (krypto.length ? rowsHtml(krypto) : '<div class="empty">None found.</div>');
+  }
+}
+
+// ---------- analytics: risk ----------
+function computeRisk(){
+  var qualifying = qualifyingPlayerNames();
+  var players = computePlayerStats().filter(function(p){ return qualifying.indexOf(p.name)>-1; });
+  return players.filter(function(p){ return p.sessions>0; }).map(function(p){
+    var nets = p.entries.map(function(e){ return e.ret-e.buyIn; });
+    var sd = stddev(nets);
+    var avgBuyIn = p.taken/p.sessions;
+    var riskScore = avgBuyIn>0 ? sd/avgBuyIn : 0;
+    return { name:p.name, sessions:p.sessions, avgBuyIn:avgBuyIn, sd:sd, riskScore:riskScore };
+  }).sort(function(a,b){ return b.riskScore-a.riskScore; });
+}
+function renderRisk(){
+  var rows = computeRisk();
+  document.getElementById("riskEmpty").style.display = rows.length ? "none" : "block";
+  var body = document.getElementById("riskBody"); body.innerHTML = "";
+  rows.forEach(function(r){
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td>'+escapeHtml(r.name)+'</td>'+
+      '<td class="num-cell">'+r.sessions+'</td>'+
+      '<td class="num-cell">'+fmt(r.avgBuyIn)+'</td>'+
+      '<td class="num-cell">'+fmt(r.sd)+'</td>'+
+      '<td class="num-cell">'+fmt(r.riskScore)+'</td>';
+    body.appendChild(tr);
+  });
+}
+
+// ---------- analytics: check ----------
+function renderCheck(){
+  var body = document.getElementById("checkBody");
+  var nums = sessionNumbers();
+  document.getElementById("checkEmpty").style.display = nums.length ? "none" : "block";
+  body.innerHTML = "";
+  nums.forEach(function(sNo){
+    var entries = state.entries.filter(function(e){ return Number(e.session)===sNo; });
+    var resolved = entries.filter(function(e){ return e.ret!==null; });
+    var unresolved = entries.length - resolved.length;
+    var totalIn = resolved.reduce(function(a,e){return a+e.buyIn;},0);
+    var totalOut = resolved.reduce(function(a,e){return a+e.ret;},0);
+    var balanced = Math.abs(totalIn-totalOut) < 0.01;
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td>'+sNo+'</td>'+
+      '<td>'+(entries[0]?fmtDate(entries[0].date):"")+'</td>'+
+      '<td class="num-cell">'+entries.length+(unresolved?(' ('+unresolved+' pending)'):'')+'</td>'+
+      '<td class="num-cell">'+fmt(totalIn)+'</td>'+
+      '<td class="num-cell">'+fmt(totalOut)+'</td>'+
+      '<td class="'+(balanced?"pos":"neg")+'">'+(balanced?"✓ balanced":"✕ off by "+fmt(Math.abs(totalIn-totalOut)))+'</td>';
+    body.appendChild(tr);
+  });
+}
+
+// ---------- settle ----------
+function sessionNumbers(){
+  var s={}; state.entries.forEach(function(e){ s[e.session]=true; });
+  return Object.keys(s).map(Number).sort(function(a,b){return b-a;});
+}
+function renderSettleOptions(){
+  var sel = document.getElementById("settleSession");
+  var cur = sel.value;
+  sel.innerHTML = sessionNumbers().map(function(n){
+    var st = state.sessionsStatus[n];
+    return '<option value="'+n+'">Session '+n+(st&&st.settled?' ✓ settled':'')+'</option>';
+  }).join("");
+  if (cur && sessionNumbers().indexOf(Number(cur))>-1) sel.value = cur;
+  sel.onchange = renderSettleList;
+  renderSettleList();
+}
+function renderSettleList(){
+  var sel = document.getElementById("settleSession");
+  var sessionNo = Number(sel.value);
+  var entries = state.entries.filter(function(e){ return Number(e.session) === Number(sessionNo); });
+  var resolved = entries.filter(function(e){ return e.ret !== null; });
+  var unresolved = entries.filter(function(e){ return e.ret === null; });
+  var balEl = document.getElementById("settleBalance");
+  var totalIn = resolved.reduce(function(a,e){return a+e.buyIn;},0);
+  var totalOut = resolved.reduce(function(a,e){return a+e.ret;},0);
+  var status = state.sessionsStatus[sessionNo];
+  balEl.className = "msg " + (totalIn===totalOut ? "ok" : "err");
+  balEl.textContent = "Resolved total: " + fmt(totalIn) + " in / " + fmt(totalOut) + " out" +
+    (totalIn===totalOut ? " — balanced." : " — off by " + fmt(Math.abs(totalIn-totalOut)) + ", check entries.") +
+    (unresolved.length ? "  (" + unresolved.length + " player(s) not yet logged with a return, excluded.)" : "") +
+    (status && status.settled ? "  ✓ Marked settled." : "");
+
+  var nets = resolved.map(function(e){ return { name:e.player, net: e.ret - e.buyIn }; });
+  var transfers = greedySettlement(nets);
+
+  var wrap = document.getElementById("settleList");
+  if (!transfers.length){ wrap.innerHTML = '<div class="empty">Nothing to settle for this session yet.</div>'; return; }
+  wrap.innerHTML = "";
+
+  async function markThisSettled(){
+    try { await apiPost("markSettled", { session: sessionNo }); await loadAll(); renderSettleOptionsKeepingSelection(sessionNo); }
+    catch(e){ /* silent — the WhatsApp tab(s) still opened either way */ }
+  }
+
+  var factor = state.settings.conversionFactor || 10;
+
+  // Build one entry per person: their owe-lines and get-lines combined into a single message.
+  var byPerson = {};
+  function person(name){
+    if (!byPerson[name]) byPerson[name] = { name:name, msgLines:[], displayLines:[] };
+    return byPerson[name];
+  }
+  transfers.forEach(function(t){
+    var amt = t.amount / factor;
+    var fromPlayer = findPlayer(t.from);
+    var toPlayer = findPlayer(t.to);
+    var fromPhone = fromPlayer ? String(fromPlayer.phone||"").trim() : "";
+    var toPhone = toPlayer ? String(toPlayer.phone||"").trim() : "";
+    var msgText = t.from + (fromPhone ? " (" + fromPhone + ")" : "") + " owes " + fmt(amt) + " to " + t.to + (toPhone ? " (" + toPhone + ")" : "") + ".";
+    var d = person(t.from);
+    d.msgLines.push(msgText);
+    d.displayLines.push(escapeHtml(t.from)+' owes <b class="neg">'+fmt(amt)+'</b> to <b>'+escapeHtml(t.to)+'</b> <span class="tag">('+fmt(t.amount)+' chips)</span>');
+    var c = person(t.to);
+    c.msgLines.push(msgText);
+    c.displayLines.push(escapeHtml(t.to)+' gets <b class="pos">'+fmt(amt)+'</b> from <b>'+escapeHtml(t.from)+'</b> <span class="tag">('+fmt(t.amount)+' chips)</span>');
+  });
+
+  // wa.me deep-links straight into the WhatsApp app on phones (best there);
+  // web.whatsapp.com opens as a plain browser tab on desktop, avoiding the
+  // WhatsApp Desktop app handoff prompt that blocks multi-tab Send All.
+  var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  function waLink(phone, message){
+    return isMobile
+      ? "https://wa.me/"+phone+"?text="+encodeURIComponent(message)
+      : "https://web.whatsapp.com/send?phone="+phone+"&text="+encodeURIComponent(message);
+  }
+
+  var people = Object.keys(byPerson).sort().map(function(name){
+    var p = byPerson[name];
+    var pl = findPlayer(name);
+    var phone = pl ? String(pl.phone||"").replace(/[^0-9]/g,"") : "";
+    var message = "Session " + sessionNo + " settlement:\n" + p.msgLines.join("\n");
+    return { name:name, phone:phone, message:message, displayLines:p.displayLines };
+  });
+
+  // Send All: opens every person's WhatsApp link in one click. This only works
+  // on desktop, where multiple window.open() calls become blockable popups the
+  // user can allow. On mobile, the browser just navigates the current page to
+  // the first link and abandons the rest — there's no code workaround for that,
+  // so on mobile this is disabled with an honest explanation instead of silently
+  // failing after the first person.
+  var sendAllRow = document.createElement("div");
+  sendAllRow.style.cssText = "display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;";
+  var sendAllBtn = document.createElement("button");
+  sendAllBtn.className = "primary"; sendAllBtn.textContent = "Send all on WhatsApp";
+  var sendAllMsg = document.createElement("span"); sendAllMsg.className = "tag";
+  if (isMobile){
+    sendAllBtn.disabled = true;
+    sendAllMsg.textContent = "Not available on mobile — phones can only open one WhatsApp chat at a time. Use the \"Text {name}\" buttons below, one by one.";
+  }
+  sendAllRow.appendChild(sendAllBtn); sendAllRow.appendChild(sendAllMsg);
+  wrap.appendChild(sendAllRow);
+  sendAllBtn.addEventListener("click", async function(){
+    var withPhone = people.filter(function(p){ return p.phone; });
+    var opened = 0, blocked = 0;
+    withPhone.forEach(function(p){
+      var win = window.open(waLink(p.phone, p.message), "_blank");
+      if (win) opened++; else blocked++;
+    });
+    var missingPhone = people.length - withPhone.length;
+    var parts = [];
+    parts.push(opened + " of " + withPhone.length + " opened");
+    if (blocked) parts.push(blocked + " blocked by your browser's popup blocker — allow popups for this site and try again");
+    if (missingPhone) parts.push(missingPhone + " skipped (no phone saved)");
+    sendAllMsg.textContent = parts.join(" · ");
+    if (opened > 0) await markThisSettled();
+  });
+
+  people.forEach(function(p){
+    var card = document.createElement("div"); card.className="settle-card";
+    var text = document.createElement("div"); text.className="settle-text";
+    text.innerHTML = '<b>'+escapeHtml(p.name)+'</b><br>' + p.displayLines.join("<br>");
+    card.appendChild(text);
+
+    if (p.phone){
+      var a = document.createElement("a");
+      a.className = "wa-btn"; a.target = "_blank";
+      a.href = waLink(p.phone, p.message);
+      a.textContent = "Text " + p.name;
+      a.addEventListener("click", markThisSettled);
+      card.appendChild(a);
+    } else {
+      var span = document.createElement("span");
+      span.style.cssText = "display:flex;gap:6px;align-items:center;";
+      span.innerHTML = '<input class="phone-input" placeholder="phone incl. country code" data-savephone="'+escapeHtml(p.name)+'"><button class="ghost small" data-savephonebtn="'+escapeHtml(p.name)+'">Save</button>';
+      card.appendChild(span);
+    }
+    wrap.appendChild(card);
+  });
+  wrap.querySelectorAll("[data-savephonebtn]").forEach(function(btn){
+    btn.addEventListener("click", async function(){
+      var name = btn.getAttribute("data-savephonebtn");
+      var input = wrap.querySelector('[data-savephone="'+name+'"]');
+      var phone = input.value.trim();
+      if (!phone) return;
+      try { await apiPost("setPhone", { name: name, phone: phone }); await loadAll(); renderSettleOptionsKeepingSelection(sessionNo); }
+      catch(e){ /* silent */ }
+    });
+  });
+}
+function renderSettleOptionsKeepingSelection(sessionNo){
+  renderSettleOptions();
+  var sel = document.getElementById("settleSession");
+  sel.value = sessionNo;
+  renderSettleList();
+}
+
+// ---------- export ----------
+document.getElementById("btnExportJson").addEventListener("click", function(){
+  var blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+  triggerDownload(blob, "poker-ledger-backup-"+todayISO()+".json");
+});
+document.getElementById("btnExportCsv").addEventListener("click", function(){
+  var rows=[["session","date","player","buyIn","return","net","multiplier"]];
+  sortedEntries().forEach(function(e){
+    var net = e.ret===null? "" : (e.ret-e.buyIn);
+    var mult = (e.ret===null||e.buyIn<=0)? "" : (e.ret/e.buyIn).toFixed(3);
+    rows.push([e.session,e.date,e.player,e.buyIn,(e.ret===null?"":e.ret),net,mult]);
+  });
+  var csv = rows.map(function(r){ return r.map(csvCell).join(","); }).join("\n");
+  triggerDownload(new Blob([csv],{type:"text/csv"}), "poker-ledger-"+todayISO()+".csv");
+});
+function csvCell(v){ v=String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+async function triggerDownload(blob, filename){
+  var url = URL.createObjectURL(blob);
+  var a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+document.getElementById("btnRefresh").addEventListener("click", loadAll);
+
+// ---------- historical import ----------
+// Name mapping applied: CM->Nitish, Malik/Mailk/Maalik->Dipankar, Batista->Debashish, Spensor->Spencer
+var SEED_PLAYERS = ["Bokaro","Nitish","Dipankar","Debashish","Spencer","Satyam","Shantanu","Gurudutt","Saumyajeet","Shahid"];
+var HISTORICAL = [
+  {session:1,date:"2026-09-06",player:"Bokaro",buyIn:2500,ret:1190},
+  {session:1,date:"2026-09-06",player:"Debashish",buyIn:1000,ret:3550},
+  {session:1,date:"2026-09-06",player:"Nitish",buyIn:2000,ret:2125},
+  {session:1,date:"2026-09-06",player:"Dipankar",buyIn:1500,ret:null},
+  {session:1,date:"2026-09-06",player:"Satyam",buyIn:500,ret:null},
+  {session:1,date:"2026-09-06",player:"Shantanu",buyIn:500,ret:385},
+  {session:1,date:"2026-09-06",player:"Spencer",buyIn:1500,ret:2250},
+  {session:2,date:"2026-09-07",player:"Bokaro",buyIn:1000,ret:2795},
+  {session:2,date:"2026-09-07",player:"Debashish",buyIn:1000,ret:1305},
+  {session:2,date:"2026-09-07",player:"Nitish",buyIn:500,ret:410},
+  {session:2,date:"2026-09-07",player:"Shantanu",buyIn:1000,ret:490},
+  {session:2,date:"2026-09-07",player:"Spencer",buyIn:1500,ret:null},
+  {session:3,date:"2026-09-08",player:"Gurudutt",buyIn:1500,ret:null},
+  {session:3,date:"2026-09-08",player:"Dipankar",buyIn:1000,ret:null},
+  {session:3,date:"2026-09-08",player:"Debashish",buyIn:1000,ret:1100},
+  {session:3,date:"2026-09-08",player:"Bokaro",buyIn:1000,ret:1560},
+  {session:3,date:"2026-09-08",player:"Nitish",buyIn:500,ret:785},
+  {session:3,date:"2026-09-08",player:"Satyam",buyIn:2000,ret:4240},
+  {session:3,date:"2026-09-08",player:"Spencer",buyIn:1000,ret:315},
+  {session:4,date:"2026-09-09",player:"Bokaro",buyIn:3000,ret:5500},
+  {session:4,date:"2026-09-09",player:"Satyam",buyIn:500,ret:4000},
+  {session:4,date:"2026-09-09",player:"Nitish",buyIn:1500,ret:null},
+  {session:4,date:"2026-09-09",player:"Debashish",buyIn:2000,ret:null},
+  {session:4,date:"2026-09-09",player:"Dipankar",buyIn:1500,ret:null},
+  {session:4,date:"2026-09-09",player:"Shantanu",buyIn:1000,ret:null},
+  {session:5,date:"2026-09-10",player:"Bokaro",buyIn:2500,ret:715},
+  {session:5,date:"2026-09-10",player:"Satyam",buyIn:2000,ret:500},
+  {session:5,date:"2026-09-10",player:"Dipankar",buyIn:1500,ret:4850},
+  {session:5,date:"2026-09-10",player:"Nitish",buyIn:500,ret:685},
+  {session:5,date:"2026-09-10",player:"Shantanu",buyIn:500,ret:null},
+  {session:5,date:"2026-09-10",player:"Debashish",buyIn:500,ret:750},
+  {session:6,date:"2026-09-11",player:"Bokaro",buyIn:2000,ret:1305},
+  {session:6,date:"2026-09-11",player:"Satyam",buyIn:2500,ret:3785},
+  {session:6,date:"2026-09-11",player:"Dipankar",buyIn:3000,ret:805},
+  {session:6,date:"2026-09-11",player:"Nitish",buyIn:500,ret:795},
+  {session:6,date:"2026-09-11",player:"Debashish",buyIn:2500,ret:3810},
+  {session:7,date:"2026-09-14",player:"Bokaro",buyIn:5000,ret:2235},
+  {session:7,date:"2026-09-14",player:"Satyam",buyIn:null,ret:2760},
+  {session:7,date:"2026-09-14",player:"Nitish",buyIn:null,ret:5505},
+  {session:7,date:"2026-09-14",player:"Debashish",buyIn:3000,ret:null},
+  {session:7,date:"2026-09-14",player:"Dipankar",buyIn:1500,ret:null},
+  {session:7,date:"2026-09-14",player:"Shantanu",buyIn:1000,ret:null},
+  {session:8,date:"2026-09-16",player:"Bokaro",buyIn:500,ret:510},
+  {session:8,date:"2026-09-16",player:"Satyam",buyIn:1500,ret:2870},
+  {session:8,date:"2026-09-16",player:"Nitish",buyIn:3000,ret:2230},
+  {session:8,date:"2026-09-16",player:"Debashish",buyIn:1000,ret:1420},
+  {session:8,date:"2026-09-16",player:"Dipankar",buyIn:1500,ret:2470},
+  {session:8,date:"2026-09-16",player:"Saumyajeet",buyIn:2000,ret:null}
+];
+document.getElementById("btnImportHistory").addEventListener("click", async function(){
+  if (state.entries.length > 0){
+    if (!confirm("You already have "+state.entries.length+" entries logged. Import the 8 historical sessions anyway? (This adds them; it won't duplicate-check.)")) return;
+  } else {
+    if (!confirm("Import 8 historical sessions (48 entries) with mapped player names? No WhatsApp messages are sent for historical data.")) return;
+  }
+  var btn = document.getElementById("btnImportHistory");
+  btn.disabled = true;
+  btn.textContent = "Adding players...";
+  for (var s=0;s<SEED_PLAYERS.length;s++){
+    try { await apiPost("addPlayer", { name: SEED_PLAYERS[s], phone: "" }); } catch(e){ /* continue */ }
+  }
+  for (var i=0;i<HISTORICAL.length;i++){
+    btn.textContent = "Importing " + (i+1) + "/" + HISTORICAL.length + "...";
+    try { await apiPost("addEntry", HISTORICAL[i]); } catch(e){ /* continue */ }
+  }
+  btn.textContent = "Import historical data"; btn.disabled = false;
+  await loadAll();
+  showMsg("Historical data imported (8 sessions, names mapped).", false);
+});
+
+// ---------- init ----------
+async function renderAll(){
+  renderLog();
+  // session # is only ever set by "Start new session" — no auto-fill here
+  if (document.getElementById("tab-players").style.display !== "none") renderPlayers();
+  if (document.getElementById("tab-trends").style.display !== "none") renderTrends();
+  if (document.getElementById("tab-daily").style.display !== "none") renderDaily();
+  if (document.getElementById("tab-leaderboard").style.display !== "none") renderLeaderboard();
+  if (document.getElementById("tab-settle").style.display !== "none") renderSettleOptions();
+  if (document.getElementById("tab-analytics").style.display !== "none") renderAnalyticsActive();
+  var dates = state.entries.map(function(e){return e.date;}).sort();
+  document.getElementById("rangeTag").textContent = dates.length ? (fmtDate(dates[0])+" → "+fmtDate(dates[dates.length-1])) : "";
+}
+// fSession starts blank — set only via "Start new session"
+loadAll();
+window.addEventListener("resize", function(){
+  if (document.getElementById("tab-trends").style.display !== "none") renderTrends();
+  if (document.getElementById("tab-daily").style.display !== "none") renderDaily();
+  if (document.getElementById("tab-leaderboard").style.display !== "none") renderLeaderboard();
+});
+})();
+</script>
+</body>
+</html>
